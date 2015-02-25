@@ -1,0 +1,785 @@
+#!/usr/bin/env python
+
+"""
+TARGet v0.1. Reconstructs the un-rooted topological ancestral recombination graph (TARG) of a sample of
+sequences using persistent homology and gives information about its recombination events (genetic distances
+of parental strains, breaking-point positions and recombinant strains).
+
+Copyright 2015, Pablo G. Camara, Columbia University
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General
+Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option)
+any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied
+warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with this program.
+If not, see <http://www.gnu.org/licenses/>.
+"""
+
+__author__ = "Pablo G. Camara"
+__credits__ = ["Pablo G. Camara", "Kevin Emmett", "Michael Lesnick", "Raul Rabadan", "Daniel Rosenbloom"]
+__copyright__ = "Copyright 2015, Rabadan's Lab, Columbia University"
+__date__ = "01/21/2015"
+__license__ = "GPLv3"
+__version__ = "0.1"
+__maintainer__ = "Pablo G. Camara"
+__email__ = "pg2495@colombia.edu"
+__status__ = "Development"
+
+
+import copy
+import gzip
+import inspect
+import itertools
+import matplotlib
+import matplotlib.gridspec
+import matplotlib.pyplot
+import multiprocessing
+import numpy
+import optparse
+import os
+import sys
+try:
+    import cPickle as pickle
+except:
+    import pickle
+
+cmd_subfolder = os.path.realpath(os.path.abspath(os.path.join(os.path.split(inspect.getfile(inspect.currentframe()))[0],
+                                                              os.path.join("build", "bindings", "python"))))
+if cmd_subfolder not in sys.path:
+    sys.path.insert(0, cmd_subfolder)
+from dionysus import Rips, Filtration, \
+    ExplicitDistances, data_dim_cmp, DynamicPersistenceChains
+import networkx
+
+
+"""
+CLASSES
+"""
+
+
+class Distances:
+    """Distances class"""
+    def __init__(self, mo, no, dico={}, maxo=1000000000):
+        self.m = mo
+        self.n = no
+        self.dic = dico
+        self.maxi = maxo
+
+    def __len__(self):
+        return self.n
+
+    def __call__(self, x, y):
+        return self.m[x][y]
+
+
+"""
+AUXILIARY FUNCTIONS
+"""
+
+
+def segregating_sites(lista):
+    """segregating_sites(lista): returns a list of segregating positions in a list
+    of strings/sequences"""
+    l = len(lista[0])
+    nonseg = range(l)
+    seg = []
+    nn = len(lista)
+    for q1 in range(nn):
+        for q2 in range(q1+1, nn):
+            for i in nonseg:
+                if lista[q1][i] != lista[q2][i]:
+                    nonseg.remove(i)
+                    if i not in seg:
+                        seg.append(i)
+    seg.sort()
+    return seg
+
+
+def subsample(lista, s, w):
+    """subsample(nsam,s,w): generator that gives all subsamples of the list of sequences lista, such that each
+    subsample has less than s elements and such that the maximum distance in the subsample is w sites.
+    Returns a dictionary with keys being the set of segregating sites and values the corresponding list of sequences.
+    """
+    wt = min(w, len(lista[0]))
+    nn = range(wt)
+    for pn in range(s):
+        oldi = list(itertools.combinations(nn, pn+1))
+        for ty in oldi:
+            if len(ty) > 1:
+                sr = ['' for _ in range(len(lista))]
+                for qq in ty:
+                    for mu in range(len(lista)):
+                        sr[mu] = sr[mu] + lista[mu][qq]
+                yield [ty, sr]
+        for _ in range(0, len(lista[0])-wt):
+            pel = oldi
+            oldi = [tuple([op + 1 for op in list(ui)]) for ui in pel]
+            for ty in list((set(oldi) ^ set(pel)) & set(oldi)):
+                if len(ty) > 1:
+                    sr = ['' for _ in range(len(lista))]
+                    for qq in ty:
+                        for mu in range(len(lista)):
+                            sr[mu] = sr[mu] + lista[mu][qq]
+                    yield [ty, sr]
+
+
+def maketuple(s):
+    """Converts a simplex to a tuple object. Required by compute_barcode."""
+    return tuple(v for v in s.vertices), s.data
+
+
+def compute_barcode(distances2, skeleton=2):
+    """compute_barcode(distances2, skeleton): computes barcode
+    from Distances object for nse sampled sequences of length maxi up to the
+    (skeleton-1) homology class"""
+    inic = []
+    larg = []
+    dime = []
+    birthchain = []
+    deathcycle = []
+    deathchain = []
+
+    maxi = distances2.maxi
+    distances = ExplicitDistances(distances2)
+    rips = Rips(distances)
+
+    simplices = Filtration()
+    rips.generate(skeleton, maxi, simplices.append)
+
+    for s in simplices:
+        s.data = rips.eval(s)
+    simplices.sort(data_dim_cmp)
+    p = DynamicPersistenceChains(simplices)
+    p.pair_simplices()
+
+    smap = p.make_simplex_map(simplices)
+    for i in p:
+        if i.sign():
+            bu = smap[i]
+
+            if bu.dimension() >= skeleton:
+                continue
+
+            if i.unpaired():
+                continue
+
+            d = smap[i.pair()]
+            if d.data-bu.data > 0:
+                inic.append(bu.data)
+                larg.append(d.data-bu.data)
+                dime.append(bu.dimension())
+                birthchain.append([maketuple(smap[ii]) for ii in i.chain])
+                deathcycle.append([maketuple(smap[ii]) for ii in i.pair().cycle])
+                deathchain.append([maketuple(smap[ii]) for ii in i.pair().chain])
+    return [dime, inic, larg, birthchain, deathcycle, deathchain]
+
+
+def hamming1(str1, str2):
+    """hamming1(str1,str2): returns number of differences between strings str1 and str2"""
+    return sum(itertools.imap(str.__ne__, str1, str2))
+
+
+def dist_list(lista):
+    """dist_list(lista): returns Distance object constructed from haplotype data stored in lista
+    as a list of strings"""
+    nn = len(lista)
+    mik = numpy.zeros((nn, nn))
+    for pi in range(nn):
+        for pj in range(nn):
+            mik[pi][pj] = hamming1(lista[pi], lista[pj])
+    distances = Distances(mik, nn)
+    return distances
+
+
+def wrap(st):
+    """wrap(st): Auxiliary wrapped function for compute_extended_barcode"""
+    co = list(set(st))
+    di = {nn: st.index(we) for nn, we in enumerate(co)}
+    ru = compute_barcode(dist_list(co))
+    po = []
+    for we in ru[4]:
+        po2 = []
+        for we2 in we:
+            po2.append(tuple([tuple([di[tiu] for tiu in we2[0]]), we2[1]]))
+        po.append(po2)
+    ru[4] = copy.deepcopy(po)
+    return ru
+
+
+def sum_barcodes(bb, cc):
+    """
+    sum_barcode(bb, cc): combines barcodes bb and cc.
+    """
+    u = []
+    for nn in range(6):
+        u.append(bb[nn] + [-1] + cc[nn])
+    u.append(bb[6] + cc[6])
+    return u
+
+
+def max_barcode(bb):
+    """
+    max_barcode(bb): returns the barcode in the list bb of barcodes that has the larger L_0 norm for H_1.
+    If L_0 norms are equal returns the one with the larger number of segregating sites.
+    """
+    nn = 0
+    r = 0
+    thres = 0
+    threslin = 0
+    for qq in bb:
+        bbt = 0
+        bbt2 = 0
+        bb3 = 0
+        ui = 0
+        for u in qq[0]:
+            if u == 1:
+                bbt += 1
+                bbt2 += qq[2][ui]
+            ui += 1
+        for w in qq[6]:
+            bb3 += w[1]-w[0]
+        if bbt > thres:
+            r = nn
+            thres = bbt
+            threslin = bb3
+        elif bbt == thres:
+            if bb3 > threslin:
+                r = nn
+                threslin = bb3
+        nn += 1
+    pur = bb[r]
+    return pur
+
+
+def optimize_barcode(bb):
+    """
+    optimize_barcode(bb): implements a generalization of the algorithm of Myers and Griffiths 2010, to combine
+    minimal barcodes bb[i][j] between segregating sites i and j. Only entries with i < j are needed.
+    """
+    rr = [[[[] for _ in range(7)] for _ in range(len(bb))] for _ in range(len(bb))]
+    k = 0
+    while k < len(bb)-1:
+        k += 1
+        for j in range(k):
+            rr[j][k] = max_barcode([sum_barcodes(rr[j][i], bb[i][k]) for i in range(j, k)])
+    return rr
+
+
+def compute_extended_barcode(lista, s, w, cores=1):
+    """compute_extended_barcode(lista,s,w): computes an optimized barcode using b1 and optimize_barcode(B).
+    The parameters s and w are passed to subsample(lista,s,w). The parameter cores specifies the number of cores used
+    for the computation.
+    """
+    li = subsample(lista, s, w)
+    bu = [[[[] for _ in range(7)] for _ in range(len(lista[0]))] for _ in range(len(lista[0]))]
+    pool = multiprocessing.Pool(processes=cores)
+    aset = [[l[0], pool.apply_async(wrap, [l[1]])] for l in li]
+    for lm in aset:
+        bu[min(lm[0])][max(lm[0])] = max_barcode([lm[1].get() +
+                                                  [[[min(lm[0]), max(lm[0])]]], bu[min(lm[0])][max(lm[0])]])
+    rr = optimize_barcode(bu)
+    return rr
+
+
+def b1_matrix(rr):
+    """b1_matrix(rr): given an rr matrix from compute_extended_barcode, computes the matrix of refined b1"""
+    kr = [[0 for _ in range(len(rr))] for _ in range(len(rr))]
+    for i in range(len(rr)):
+        for j in range(len(rr)):
+            for u in rr[i][j][0]:
+                if u == 1:
+                    kr[i][j] += 1
+    return kr
+
+
+def pivotes(rr):
+    """pivotes(rr): returns a list of pivotal positions of the matrix rr"""
+    pivots = []
+    for i in range(len(rr)):
+        flag = 0
+        for j in range(len(rr)):
+            if flag == 0 and rr[i][j] > 0:
+                if len(pivots) > 0 and pivots[-1][1] == j and rr[i][j] >= rr[pivots[-1][0]][pivots[-1][1]]:
+                    del pivots[-1]
+                    pivots.append((i, j))
+                elif len(pivots) == 0 or pivots[-1][1] != j:
+                    pivots.append((i, j))
+                flag = 1
+    flagb = 1
+    if len(pivots) > 1:
+        cpivots = []
+        while flagb == 1:
+            cpivots = []
+            wy = 0
+            flagb = 0
+            flag = 0
+            for mj in pivots[:-1]:
+                if mj[1] <= pivots[wy+1][0] and flag == 0:
+                    cpivots.append(mj)
+                elif mj[1] > pivots[wy+1][0] and flag == 0:
+                    cpivots.append((mj[0], pivots[wy+1][1]))
+                    flag = 1
+                    flagb = 1
+                elif flag == 1:
+                    flag = 0
+                if wy == len(pivots)-2 and flag == 0:
+                    cpivots.append(pivots[-1])
+                wy += 1
+            pivots = copy.deepcopy(cpivots)
+    else:
+        cpivots = pivots
+    return cpivots
+
+
+def rates(rr):
+    """rates(rr): returns a partition of segregating sites such that each segment contains the most stringent
+    refined b1"""
+    pivots = pivotes(rr)
+    new = copy.deepcopy(pivots)
+    oldd = copy.deepcopy(pivots)
+    flag = 0
+    while new != oldd or flag == 0:
+        flag = 1
+        oldd = copy.deepcopy(new)
+        for nn in range(len(oldd)-1):
+            n2 = nn+1
+            tur = 0
+            for qq in range(nn, n2+1):
+                tur += rr[oldd[qq][0]][oldd[qq][1]]
+            if rr[oldd[nn][0]][oldd[n2][1]] > tur:
+                del new[nn:n2+1]
+                new.insert(nn, (oldd[nn][0], oldd[n2][1]))
+                break
+    pel = []
+    for qq in new:
+        pel.append([qq, rr[qq[0]][qq[1]]])
+    return pel
+
+
+def connect_tree(dista, in_list, out_list):
+    """
+    connect_tree(dist, in_list, out_list): returns a list of edges connecting out_list to in_list
+    in a nearest neighbour way, where dist is the total distance matrix.
+    """
+    pin = copy.deepcopy(in_list)
+    pout = copy.deepcopy(out_list)
+    coru = []
+    for _ in out_list:
+        r = 1e60
+        tin = 0
+        tout = 0
+        for my in pout:
+            for u in pin:
+                if dista[my][u] < r:
+                    r = dista[my][u]
+                    tin = u
+                    tout = my
+        coru.append((tin, tout))
+        pin.append(tout)
+        pout.remove(tout)
+    return coru
+
+
+def breaking_points(rr):
+    """breaking_points(rr): gives a list of breaking points from the matrix rr"""
+    kr = []
+    for i in range(len(rr)-1):
+        if rr[i][i+1] == 1:
+            kr.append(i)
+    return kr
+
+
+def explore_barcode(brc, pose, rq, dista, li=()):
+    """
+    explore_barcode(bc): tools for graphical exploration of a barcode
+    """
+    global linea
+    global ax1
+    global ax2
+    global posa
+    global tc
+    global m
+    global old
+    global ax5
+    global ry
+    global br
+    global ptu
+    global dic
+    global qm
+    global cuna
+    global distam
+
+    br = brc[0][-1]
+    tc = br
+    qm = li
+    cuna = pose
+    distam = dista
+    ry = rq
+
+    fig = matplotlib.pyplot.figure()
+    gs = matplotlib.gridspec.GridSpec(6, 3, width_ratios=[2, 2, 1], height_ratios=[4, 1, 1, 0.4, 0.2, 1])
+    gs.update(wspace=0.1, hspace=0.4, left=0.05, right=0.95)
+    ax1 = matplotlib.pyplot.subplot(gs[0:-3, 0])
+    ax2 = matplotlib.pyplot.subplot(gs[0:-3, 1])
+    ax3 = matplotlib.pyplot.subplot(gs[0, 2])
+    ax5 = matplotlib.pyplot.subplot(gs[5, :])
+    ax6 = matplotlib.pyplot.subplot(gs[4, :])
+    ax6.axes.get_yaxis().set_visible(False)
+    ax6.axes.get_xaxis().set_visible(False)
+
+    def subplot1(bc, ax):
+        global linea
+        bb = 1
+        no = 0
+        matplotlib.pyplot.sca(ax)
+        linea = []
+        for q in bc[0]:
+            if q == 1:
+                x = numpy.linspace(bc[1][no], bc[1][no]+bc[2][no], 2)
+                y = [bb, bb]
+                bb += 1
+                line, = ax.plot(x, y, linewidth=3.0, c='b', picker=4)
+                linea.append(line)
+            no += 1
+        ax.set_ylim(0, bb)
+        ax.set_xlim(0, max(numpy.array(bc[1])+numpy.array(bc[2]))+1)
+        ax.set_xlabel('genetic distance')
+        return True
+
+    def subplot2(bc, ax, distb, pos=None, hi=None, hit=None):
+        matplotlib.pyplot.sca(ax)
+        cycles = []
+        for n in range(len(bc[0])):
+            if bc[0][n] == 1:
+                for ql in bc[4][n]:
+                    cycles.append(ql[0])
+        cycles = list(set(cycles))
+        g = networkx.Graph()
+        g.add_edges_from(cycles)
+        nodes = []
+        for jjj in cycles:
+            nodes.append(jjj[0])
+            nodes.append(jjj[1])
+        nodes = list(set(nodes))
+        other = []
+        for okm in range(len(distb)):
+            if okm not in nodes:
+                other.append(okm)
+        extra_edges = connect_tree(distb, nodes, other)
+        g.add_edges_from(extra_edges)
+        if pos is None:
+            try:
+                pe = sys.stderr
+                fgh = open(os.devnull, 'w')
+                sys.stderr = fgh
+                pos = networkx.graphviz_layout(g, prog='sfdp')
+                sys.stderr = pe
+                fgh.close()
+            except:
+                pos = networkx.spring_layout(g)
+        networkx.draw_networkx_edges(g, pos, width=1)
+        networkx.draw_networkx_nodes(g, pos, node_color=(0.2, 0.8, 0.4), node_size=700, cmap=matplotlib.pyplot.cm.Blues)
+        networkx.draw_networkx_labels(g, pos, font_size=10, font_family='sans-serif')
+        if hit is not None:
+            cycles = []
+            tl = 0
+            for n in range(len(bc[0])):
+                if bc[0][n] == 1:
+                    if tl in hit and tl != hi:
+                        for ql in bc[4][n]:
+                            cycles.append(ql[0])
+                        networkx.draw_networkx_edges(g, pos, edgelist=cycles, width=2, edge_color='y')
+                    tl += 1
+        if hi is not None:
+            cycles = []
+            tl = 0
+            for n in range(len(bc[0])):
+                if bc[0][n] == 1:
+                    if tl == hi:
+                        for ql in bc[4][n]:
+                            cycles.append(ql[0])
+                        networkx.draw_networkx_edges(g, pos, edgelist=cycles, width=4, edge_color='r')
+                        break
+                    tl += 1
+        ax.axes.get_yaxis().set_visible(False)
+        ax.axes.get_xaxis().set_visible(False)
+        return pos
+
+    def subplot3(bc, lim, ax, hi=None):
+        nod = []
+        tl = 0
+        for n in range(len(bc[0])):
+            if bc[0][n] == 1:
+                if tl == hi:
+                    for ql in bc[4][n]:
+                        for mu in list(ql[0]):
+                            nod.append(mu)
+                tl += 1
+        nod = list(set(nod))
+        st = ""
+        figg = matplotlib.pyplot.gcf()
+        sin = figg.get_size_inches()[0]
+        for qt in nod:
+            st += str(qt) + ' : ' + str(lim[qt][:int(sin*1.5)]) + '\n'
+        ax.set_xlim(0.0, 1.0)
+        ax.set_ylim(0.0, 1.0)
+        ax.text(0.05, 0.05, st, fontsize=10, color='r')
+        ax.axes.get_xaxis().set_visible(False)
+        ax.axes.get_yaxis().set_visible(False)
+        return True
+
+    def subplot5(rats, bres, pt, ax, hi=None):
+        global cuna
+
+        clin = []
+        for qt in rats:
+            clin.append(float(qt[1]))
+        inter = []
+        rat = []
+        for n in rats:
+            inter.append((cuna[n[0][0]], cuna[n[0][1]]-cuna[n[0][0]]))
+            rat.append((1-n[1]*0.5/max(clin), 1-n[1]*0.5/max(clin), 1-n[1]*0.2/max(clin)))
+        ax.broken_barh(inter, (0, 1), facecolors=rat)
+        for o in pt:
+            ax.plot((cuna[o]+0.5, cuna[o]+0.5), (0, 1), 'r-', linewidth=1)
+        ax.set_xlim(0, cuna[max(bres[-1])])
+        ax.set_ylim(0, 1)
+        ax.axes.get_yaxis().set_visible(False)
+        ax.axes.get_xaxis().set_ticks(numpy.arange(0,  cuna[max(bres[-1])]+1,
+                                                   max(1, int(float(cuna[max(bres[-1])]+1)/50.0))))
+        for tick in ax.xaxis.get_major_ticks():
+                tick.label.set_fontsize(8)
+        return True
+
+    def subplot6(bres, ax, hi=None):
+        global cuna
+
+        inter2 = []
+        for n in bres:
+            inter2.append((cuna[n[0]], cuna[n[1]]-cuna[n[0]]))
+        if hi is not None:
+            ax.broken_barh([inter2[hi]], (0, 1), facecolor='r')
+        ax.set_xlim(0, cuna[max(bres[-1])])
+        ax.set_ylim(0, 1)
+        ax.axes.get_yaxis().set_visible(False)
+        ax.axes.get_xaxis().set_visible(False)
+        return True
+
+    def onpick(event):
+        global ax1
+        global ax2
+        global ax5
+        global posa
+        global tc
+        global linea
+        global old
+        global m
+        global ry
+        global br
+        global ptu
+        global dic
+        global qm
+        global distam
+
+        if event.artist not in linea:
+            return True
+
+        nn = len(event.ind)
+        if not nn:
+            return True
+
+        if old is not None:
+            for pu in old:
+                pu.set_color('b')
+        pu = []
+        tyu = 0
+        for pu in m:
+            if linea.index(event.artist) in pu:
+                old = []
+                for y in pu:
+                    old.append(linea[y])
+                    linea[y].set_color('y')
+                break
+            tyu += 1
+        event.artist.set_color('r')
+        ax2.cla()
+        subplot2(tc, ax2, distam, pos=posa, hi=linea.index(event.artist), hit=pu)
+        ax3.cla()
+        subplot3(tc, qm, ax3, hi=linea.index(event.artist))
+        ax6.cla()
+        subplot6(br[6], ax6, hi=dic[tyu])
+
+        matplotlib.pyplot.draw()
+        return True
+
+    t = 0
+    to = -1
+    lo = 0
+    m = []
+    p = []
+    dic = {}
+    for q in br[0]:
+        if q == -1:
+            if len(p) > 0:
+                m.append(p)
+                dic[lo] = to
+                lo += 1
+            p = []
+            to += 1
+        if q == 1:
+            p.append(t)
+            t += 1
+    if p:
+        m.append(p)
+        dic[lo] = to
+    old = None
+    subplot1(tc, ax1)
+    posa = subplot2(tc, ax2, distam)
+    ptu = breaking_points(b1_matrix(brc))
+    subplot5(ry, br[6], ptu, ax5)
+    for o in ry:
+        ax5.text(float(cuna[o[0][0]]+cuna[o[0][1]])/2.0, 0.4, str(o[1]), fontsize=13, style='italic', ha='center')
+    ax5.set_xlabel('position')
+    ax3.axes.get_xaxis().set_visible(False)
+    ax3.axes.get_yaxis().set_visible(False)
+    fig.suptitle('TARGet v' + __version__, fontsize=20)
+    fig.canvas.mpl_connect('pick_event', onpick)
+    fig.canvas.set_window_title('TARGet v0.1')
+    matplotlib.pyplot.show()
+
+
+"""
+MAIN CODE
+"""
+
+sys.stdout.write("### TARGet v" + __version__ + ": Topological inference of reticulate evolution.\n\n")
+
+"""
+Parse command-line options
+"""
+usage = "%prog [options] FILE"
+parser = optparse.OptionParser(usage=usage)
+parser.add_option("-c", "--cores", dest="c", help="number of cores for multi-threading (default 1).",
+                  action="store", type="int", default=1)
+parser.add_option("-o", "--output", dest="o", help="prefix for output files (default 'out').",
+                  action="store", type="string", default="out")
+parser.add_option("-s", "--sites", dest="s", help="limit sub-sampling to sets with at most S segregating sites "
+                                                  "(default 5).", action="store", type="int", default=5)
+parser.add_option("-w", "--window", dest="w", help="limit sub-sampling to sets with segregating sites at a "
+                                                   "maximum distance of W segregating sites (default 13).",
+                  action="store", type="int", default=13)
+parser.add_option("-n", "--no-graphics", dest="quiet", help="disables graphical interface.", action="store_true",
+                  default=False)
+parser.add_option("-l", "--load", dest="load", help="restores previous session stored in FILE.", action="store_true",
+                  default=False)
+
+
+(options, args) = parser.parse_args()
+if len(args) < 1:
+    sys.stdout.write("Error: input file not specified. For help type TARGet --help.\n")
+    sys.exit()
+
+if options.load is False:
+    """
+    Parse input
+    """
+    sys.stdout.write('Reading sequences... ')
+    sys.stdout.flush()
+    seqs = []
+    labels = []
+    cor = ''
+    try:
+        f = open(args[0], 'r')
+        flag = 0
+        for line in f:
+            if line[0] == '>':
+                labels.append(line.replace('>', '')[:-1])
+                if flag == 1:
+                    seqs.append(cor)
+                cor = ''
+                flag = 1
+            elif flag == 1:
+                cor += line.replace(' ', '')[:-1]
+        if flag == 1:
+            seqs.append(cor)
+    except IOError:
+        sys.stdout.write("Error: file not found.\n")
+        sys.exit()
+    poss = segregating_sites(seqs)
+    sec = ['' for _ in range(len(seqs))]
+    for nis in poss:
+        for qk in range(len(seqs)):
+            sec[qk] += seqs[qk][nis]
+    sys.stdout.write(str(len(seqs)) + " sequences read.\n")
+
+    """
+    Persistent homology computation
+    """
+    sys.stdout.write("Computing persistent homology, this may take some minutes... ")
+    sys.stdout.flush()
+    pio = compute_extended_barcode(sec, options.s, options.w, options.c)
+    culli = b1_matrix(pio)
+    pst = rates(culli)
+    dist = dist_list(sec).m
+    sys.stdout.write("Done!\n")
+
+    if culli[0][-1] > 0:
+        """
+        Write output
+        """
+        sys.stdout.write("Writing output into " + options.o + ".b1.txt, " + options.o + ".bars.txt and "
+                         + options.o + ".targ... ")
+        sys.stdout.flush()
+        f = open(options.o + ".b1.txt", 'w')
+        f.write("start\t end\t b1\n")
+        for line in pst:
+            f.write(str(poss[line[0][0]]) + '\t' + str(poss[line[0][1]]) + '\t' + str(line[1]) + '\n')
+        f.close()
+
+        f = open(options.o + ".bars.txt", 'w')
+        f.write("birth\t death\t generators\t start\t end\n")
+
+        t = 0
+        to = -1
+        lo = 0
+        dic = {}
+        for q in pio[0][-1][0]:
+            if q == -1:
+                to += 1
+            dic[t] = to
+            t += 1
+
+        for nis, line in enumerate(pio[0][-1][0]):
+            if line == 1:
+                f.write(str(pio[0][-1][1][nis]) + '\t' + str(pio[0][-1][1][nis]+pio[0][-1][2][nis]) + '\t'
+                        + str([qk[0] for qk in pio[0][-1][4][nis]]) + '\t' + str(pio[0][-1][6][dic[nis]][0]) + '\t' +
+                        str(pio[0][-1][6][dic[nis]][1]) + '\n')
+        f.close()
+
+        f = gzip.open(options.o + ".targ", 'wb')
+        pickle.dump([pio, labels, poss, pst, dist], f)
+        f.close()
+        sys.stdout.write("Done!\n\n")
+        sys.stdout.flush()
+        opy = False
+    else:
+        sys.stdout.write("No recombination detected in the sample.\n")
+        opy = True
+else:
+    sys.stdout.write("Loading session...\n\n")
+    sys.stdout.flush()
+    f = gzip.open(args[0], 'rb')
+    [pio, labels, poss, pst, dist] = pickle.load(f)
+    f.close()
+    opy = False
+
+"""
+Graphical interface
+"""
+if not opy:
+    if not options.quiet:
+        explore_barcode(pio, poss, pst, dist, labels)
+    sys.stdout.write("Session can be restored using the command: TARGet -l " + options.o + ".targ\n")
