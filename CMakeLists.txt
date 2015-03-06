@@ -9,6 +9,10 @@ add_definitions             (${cxx_flags})
 # Fix the XCode bug
 add_definitions             (-ftemplate-depth=256)
 
+#set						 (PYTHON_EXECUTABLE /usr/local/bin/python2.6)
+#set        				 (PYTHON_INCLUDE_DIR /usr/local/include/python2.6)
+#set			     		 (PYTHON_PATH /usr/local/lib/libpython2.6.dylib)
+
 # Set includes
 include_directories         (${CMAKE_CURRENT_BINARY_DIR}
                              ${CMAKE_CURRENT_SOURCE_DIR}/include
