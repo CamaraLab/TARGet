@@ -277,9 +277,18 @@ def compute_extended_barcode(lista, s, w, cores=1):
     bu = [[[[] for _ in range(7)] for _ in range(len(lista[0]))] for _ in range(len(lista[0]))]
     pool = multiprocessing.Pool(processes=cores)
     aset = [[l[0], pool.apply_async(wrap, [l[1]])] for l in li]
-    for lm in aset:
+    ljobs = len(aset)
+
+    for lidx, lm in enumerate(aset):
         bu[min(lm[0])][max(lm[0])] = max_barcode([lm[1].get() +
                                                   [[[min(lm[0]), max(lm[0])]]], bu[min(lm[0])][max(lm[0])]])
+        if lidx % (ljobs / 10):
+            sys.stdout.write('Completed {0} of {1} jobs\r'.format(lidx, ljobs))
+            sys.stdout.flush()
+
+    sys.stdout.write('Completed {0} of {0} jobs\n'.format(ljobs))
+    sys.stdout.flush()
+
     rr = optimize_barcode(bu)
     return rr
 
@@ -718,7 +727,7 @@ if options.load is False:
     """
     Persistent homology computation
     """
-    sys.stdout.write("Computing persistent homology, this may take some minutes... ")
+    sys.stdout.write("Computing persistent homology, this may take some minutes...\n")
     sys.stdout.flush()
     pio = compute_extended_barcode(sec, options.s, options.w, options.c)
     culli = b1_matrix(pio)
