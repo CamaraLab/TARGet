@@ -260,10 +260,10 @@
 \section{Introduction}
 \label{sec1}
 
-TARGet is a light-weight application for reconstructing reticulate evolutionary histories from sampled genetic sequences. TARGet makes use of persistent homology \cite{ph, ph2}, a tool from computational algebraic topology, to infer information about the minimal set of reticulate events (recombination, re-assortment, etc) that are needed 
-to explain a sequence alignment, under the assumption of no convergent evolution. It exploits a sequence partitioning strategy similar to that of ref.~\cite{mg}, but the topological nature of TARGet permits inferring phylogenetic information about reticulate events, like the participating gametes or the associated genetic scales. Specifically, TARGet attempts to reconstruct the topological ancestral recombination graph (tARG) of the sequence alignment, which is closely related (in most cases actually identical) to minimal ARGs \cite{target}. 
+TARGet is a light-weight application for reconstructing non-vertical evolutionary histories from sampled genetic sequences. TARGet makes use of persistent homology \cite{ph, ph2}, a tool from topological data analysis, to infer information about the minimal set of reticulate events (recombination, re-assortment, etc) that are needed 
+to explain a sequence alignment, under the assumption of no convergent evolution. It exploits a sequence partitioning strategy similar to that of ref.~\cite{mg}, but the topological nature of TARGet permits inferring phylogenetic information about reticulate events, like the participating gametes or the associated genetic scales. Specifically, TARGet computes the extended first-homology barcode of the sequence alignment and attempts to reconstruct the topological ancestral recombination graph (tARG), which is closely related (in most cases actually identical) to minimal ARGs \cite{target}. 
 
-The advantage of working with tARGs is that they can be computed directly from the alignment, without having to exhaustively explore the ARG space. Hence, as opposed to standard methods of ancestral recombination graph (ARG) reconstruction, TARGet is a fast multi-threaded algorithm that can be applied to large datasets, consisting of hundreds of genetic sequences. It is therefore a great tool for exploring reticulate evolution not only in virus and bacteria, but also in eukaryotes.
+The advantage of working with barcodes and tARGs is that they can be computed in polynomial time, without having to perform exhaustive explorations of the ARG space. Hence, as opposed to standard methods of ancestral recombination graph (ARG) reconstruction, TARGet is a fast multi-threaded algorithm that can be applied to large datasets, consisting of hundreds of genetic sequences. It is therefore a great tool for exploring reticulate evolution not only in virus and bacteria, but also in eukaryotes.
 
 TARGet is distributed under the GNU General Public License (GPL v3). It is fully written in Python 2.7, but heavily relies on \href{http://www.mrzv.org/software/dionysus/}{Dionysus} C++ library for persistent homology computations. It runs in Windows, Mac OS and Unix systems, provided all dependences are installed. If you use TARGet for your research, please include \cite{target} in your references. 
 
@@ -271,7 +271,7 @@ TARGet is distributed under the GNU General Public License (GPL v3). It is fully
 
 To run TARGet, the following free software is required in the system:
 \begin{itemize}
-\item[-] \href{https://www.python.org/}{Python 2.x.} (Python 3 is currently not supported.)
+\item[-] \href{https://www.python.org/}{Python 2.7.} (Python 3 is currently not supported.)
 \item[-] \href{http://www.cmake.org/}{CMake.}
 \item[-] \href{http://www.boost.org/}{Boost C++ libraries,} including Boost.Python.
 \item[-] \href{https://networkx.github.io/}{NetworkX} package for Python.
@@ -293,7 +293,21 @@ Once the above dependences are installed in the system, you can unpack and build
 
 \texttt{make}
 
-\noindent On Mac OSX, CMake often has issues finding the correct python path. 
+The Python executable is in directory \texttt{TARGet}. You can check that TARGet has been correctly installed by running it on the test or on the example FASTA files that come with the distribution:
+
+\texttt{./TARGet test.fa}
+
+\noindent or
+
+\texttt{python TARGet test.fa}
+
+
+\subsection*{Troubleshooting}
+
+These are some potential problems that can happen during the installation procedure, and their solution:
+
+\begin{itemize}
+\item[-] On Mac OSX, CMake often has issues finding the correct python path. 
 If that is the case, uncomment the following three lines in file 
 CMakeLists.txt, replacing the directories for the appropriate ones 
 in your system,
@@ -304,21 +318,32 @@ in your system,
 
 \texttt{set (PYTHON\_PATH /usr/local/lib/libpython2.6.dylib)}
 
-\noindent and run \texttt{cmake} and \texttt{make} again.
+and run \texttt{cmake} and \texttt{make} again.
 
-The Python executable is in directory \texttt{TARGet}. You can check that TARGet has been correctly installed by running it on the test FASTA file that comes with the distribution:
+\item[-] Some compiler versions may raise the following error:
 
-\texttt{./TARGet test.fa}
+\texttt{error: unrecognized command line option "-ftemplate-depth=256"}
 
-\noindent or
+If that is the case, replace the following line in CMakeList.txt,
 
-\texttt{python TARGet test.fa}
+\texttt{add\_definitions  \qquad \qquad              (-ftemplate-depth=256)}
+
+by,
+
+\texttt{add\_definitions   \qquad \qquad          (-ftemplate-depth-256)}
+
+and run cmake and make again.
+
+\item[-] It is important to run TARGet using the same version of Python that 
+was used to compile TARGet and Boost libraries.
+
+\end{itemize}
 
 \section{Running TARGet}
 
 \subsection*{Input file}
 
-The standard TARGet input is a FASTA file containing a DNA sequence alignment. For better performance, it is recommended to remove duplicated sequences from the input file before running TARGet. The current version cannot deal properly with large gaps (more than 2 or 3 bases long), so it is also advised to remove those loci from the alignment. A suitable gap treatment will be implemented in the next version of TARGet.
+The standard TARGet input is a FASTA file containing a DNA sequence alignment. For better performance, it is recommended to remove duplicated sequences from the input file before running TARGet. The current version cannot deal properly with large gaps (more than 2 or 3 bases long), so it is also advised to remove those loci from the alignment. A suitable gap treatment will be implemented in next versions of TARGet.
 
 Alternatively, the input file can contain only segregating sites (in bi-allelic 0/1 format). For instance:
 
@@ -352,13 +377,15 @@ TARGet is a multi-threaded algorithm. By default it will run in a single CPU cor
 
 \subsubsection*{\texttt{-o <prefix>}}
 
-TARGet produces three output files. By default these are named:
+TARGet produces four output files. By default these are named:
 
 \texttt{out.b1.txt}
 
 \texttt{out.bars.txt} 
 
 \texttt{out.targ}
+
+\texttt{out.gexf}
 
 \noindent A different prefix (instead of \texttt{out}) for the output files can be specified with the command line option \texttt{-o <prefix>}.
 
@@ -380,7 +407,7 @@ One of the three output files that TARGet produces is a binary file (by default 
 
 TARGet produces an extended barcode associated to the sequence alignment and attempts to reconstruct the tARG. Each bar in the extended barcode represents a reticulate event in the sample history. Bar positions and lengths are related to the genetic scales of the gametes that took part in the reticulate event, measured in number of mutations. Assuming good sampling density, reticulate events involving genetically very different parental sequences (e.g. recombination of strains that diverged long time ago) are represented by long bars at high genetic scales in the barcode, whereas reticulate events involving closely related parental sequences appear as short bars at low genetic scales.
 
-For the sake of illustration, consider a sample of 7 sequences with the following genotype:
+For the sake of illustration, consider a sample of 7 sequences with the following genotype (these can be found in the file \texttt{test.fa}):
 
 0\ : \ \texttt{1 1 1 1 0 0 0 0}
 
@@ -402,12 +429,16 @@ The extended barcode of the sample is shown in figure \ref{fig1}c. It has two ba
 
 \begin{figure}[!ht]
 \centering
-\includegraphics[width=14.cm, angle=0]{draw.png}
-\caption{a) Example of minimal ARG describing a minimal evolutionary history for the sample of 7 sequences considered in the text. Mutation events are represented with crosses. The ARG involves two recombination events. b) tARG associated to the sample. c) Extended barcode associated to the sample.
+\includegraphics[width=15.8cm, angle=0]{draw.png}
+\caption{a) Example of minimal ARG describing a minimal evolutionary history for the sample of 7 sequences considered in the text. Mutation events in the $i$-th position are represented as $m_i$. Root node is marked in red and leaf nodes are marked in green. The ARG involves two recombination events. b) tARG associated to the sample. c) Extended barcode associated to the sample.
 \label{fig1}}
 \end{figure} 
 
-Barcodes are relatively stable against sampling. For instance, in the above example we would obtain the same barcode if we remove sequences 0, 2 and 6 from the sample. 
+\noindent These results can be simply obtained by running
+
+\texttt{./TARGet -s 8 test.fa}
+
+\noindent Barcodes are relatively stable against sampling. For instance, in the above example we would obtain the same barcode if we remove sequences 0, 2 and 6 from the sample. 
 
 \subsection*{Graphical interface}
 
@@ -427,13 +458,13 @@ Generally, the extended barcode is built out of various sequence blocks \cite{ta
 
 \subsection*{Output files}
 
-TARGet produces three output files, by default named \texttt{out.bars.txt}, \texttt{out.b1.txt}, and \texttt{out.targ}. We have described above the use of the binary file \texttt{out.targ}, containing all the information required to resume a graphical session.
+TARGet produces four output files, by default named \texttt{out.bars.txt}, \texttt{out.b1.txt}, \texttt{out.targ} and \texttt{out.gexf}. We have described above the use of the binary file \texttt{out.targ}, containing all the information required to resume a graphical session.
 
 The file \texttt{out.bars.txt} contains a tab separated table listing all reticulate events in the extended barcode. The format is:
 
 \texttt{birth\ \ \ \ \ death\ \ \ \ \ generators\ \ \ \ \ start\ \ \ \ \ end}
 
-\noindent Each row represents a single reticulate event. The first two columns in the table contain the genetic scales of the two bar extrema in the extended barcode. The third column contains a list of the edges that make the corresponding loop in the tARG. Each edge is given by a pair of sequences, where sequences are denoted by integers starting from 0 in the same order as they appear in the input file. The last two columns contain respectively the start and end positions of the genomic segment associated to the building block containing the reticulate event \cite{target}. 
+\noindent Each row represents a single reticulate event in the tARG. The first two columns in the table contain the genetic scales of the two bar extrema in the extended barcode. The third column contains a list of the edges that make the corresponding loop in the tARG. Each edge is given by a pair of sequences, where sequences are denoted by integers starting from 0 in the same order as they appear in the input file. The last two columns contain respectively the start and end positions of the genomic segment associated to the building block containing the reticulate event \cite{target}. 
 
 The file \texttt{out.b1.txt} contains a tab separated table with columns:
 
@@ -443,9 +474,11 @@ The file \texttt{out.b1.txt} contains a tab separated table with columns:
 
 All positions listed in the columns \texttt{start} and \texttt{end} in files \texttt{out.bars.txt} and \texttt{out.b1.txt}, refer to genomic positions except when the input file contains only segregating sites.
 
+Finally, the file \texttt{out.gexf} contains the reconstructed tARG in GEXF (Graph Exchange XML Format), that can be opened by most network analysis programs.
+
 \section{Upcoming features}
 
-There are some clear features to be implemented in future versions of TARGet:
+There are some features that may be implemented in future versions of TARGet:
 
 \begin{itemize}
 \item Currently TARGet measures distances between genetic sequences using a simple hamming metric. This can be limiting in situations where large gaps are present in the sequence alignment. The implementation of genetic scores that take into account gaps is therefore a desirable.
@@ -456,8 +489,13 @@ There are some clear features to be implemented in future versions of TARGet:
 
 \item The algorithm that TARGet currently uses for localizing reticulate event break points across the genetic sequence is sub-optimal. As a consequence, in some complex situations some of the reticulate events listed in the file \texttt{out.bars.txt} may be missing in the file \texttt{out.b1.txt}. Hence, a better algorithm is desirable.
 \end{itemize}
-If you like programming in Python and would like to contribute to implementing any of these features (or other features that may be also useful), please do not hesitate to contact me (\href{mailto://pg2495@cumc.columbia.edu}{ \texttt{pg2495@cumc.columbia.edu}} ).
 
+\begin{figure}[!ht]
+\centering
+\includegraphics[width=16cm, angle=0]{finches.png}
+\caption{Extended first-homology barcode and reconstructed tARG of a sample of 112 Darwin's finches, obtained with \texttt{TARGet} (the source FASTA file, \texttt{Darwing\_Finches.fa}, is included in the distribution). The extended first-homology barcode is shown in a), based on 140 homozygous SNPs present in a 9 megabase scaffold. In total, 13 recombination/gene flow events are captured in the extended barcode, having different genetic scales. Bars are coloured according to the position of the corresponding recombination breakpoint in the genome, as depicted in The number of recombination events detected at each genomic interval, as well as some of the orthologous genes present at regions where recombination events are detected, are indicated in c). The reconstructed tARG is presented in b). Recombination loops in the reconstructed tARG are outlined using the same code of colors. Leaf nodes that do not participate in any recombination event are also included in the graph, using a nearest neighbour algorithm based on genetic distance. Edge lengths are arbitrary. Figure taken from \cite{target}.
+\label{fig7}}
+\end{figure} 
 
 \begin{thebibliography}{99}
 
@@ -467,7 +505,7 @@ If you like programming in Python and would like to contribute to implementing a
 
 \bibitem{mg} Myers, S.R. and Griffiths, R.C. (2003), \emph{Bounds on the minimum number of recombination events in a sample history}. Genetics {\bf 163}, pp. 375-394.
 
-\bibitem{target} Camara, P.G., et al. (2015), \emph{TARGet: an algorithm for topological inference of reticulate evolution}. In preparation.
+\bibitem{target} Camara, P.G., Levine A.J. and Rabadan R. (2015), \emph{Inference of ancestral recombination graphs through topological data analysis}. In preparation.
 
 \bibitem{hk} Hudson, R.R. and Kaplan, N.L. (1985), \emph{Statistical Properties of the Number of Recombination Events in the History of a Sample of DNA Sequences}. Genetics {\bf 111}, pp. 147-164.
 

@@ -197,7 +197,7 @@ def dist_list(lista):
 def wrap(st):
     """wrap(st): Auxiliary wrapped function for compute_extended_barcode"""
     co = list(set(st))
-    di = {nn: st.index(we) for nn, we in enumerate(co)}
+    di = dict((nn, st.index(we)) for nn, we in enumerate(co))
     ru = compute_barcode(dist_list(co))
     po = []
     for we in ru[4]:
@@ -485,6 +485,8 @@ def explore_barcode(brc, pose, rq, dista, li=()):
                 fgh = open(os.devnull, 'w')
                 sys.stderr = fgh
                 pos = networkx.graphviz_layout(g, prog='sfdp')
+                if not options.load:
+                    networkx.write_gexf(g, options.o + '.gexf')
                 sys.stderr = pe
                 fgh.close()
             except:
@@ -739,8 +741,8 @@ if options.load is False:
         """
         Write output
         """
-        sys.stdout.write("Writing output into " + options.o + ".b1.txt, " + options.o + ".bars.txt and "
-                         + options.o + ".targ... ")
+        sys.stdout.write("Writing output into " + options.o + ".b1.txt, " + options.o + ".bars.txt, "
+                         + options.o + ".targ and " + options.o + ".gexf... ")
         sys.stdout.flush()
         f = open(options.o + ".b1.txt", 'w')
         f.write("start\t end\t b1\n")
@@ -791,4 +793,6 @@ Graphical interface
 if not opy:
     if not options.quiet:
         explore_barcode(pio, poss, pst, dist, labels)
-    sys.stdout.write("Session can be restored using the command: TARGet -l " + options.o + ".targ\n")
+    if not options.load:
+        sys.stdout.write("Session can be restored using the command: TARGet -l " +
+                         str(os.path.normpath(options.o + ".targ")) + "\n")
