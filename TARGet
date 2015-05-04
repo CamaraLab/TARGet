@@ -275,7 +275,7 @@ def compute_extended_barcode(lista, s, w, cores=1):
     """
     li = subsample(lista, s, w)
     bu = [[[[] for _ in range(7)] for _ in range(len(lista[0]))] for _ in range(len(lista[0]))]
-    pool = multiprocessing.Pool(processes=cores)
+    pool = multiprocessing.Pool(processes=cores, maxtasksperchild=1000)
     aset = [[l[0], pool.apply_async(wrap, [l[1]])] for l in li]
     ljobs = len(aset)
 
@@ -741,8 +741,9 @@ if options.load is False:
         """
         Write output
         """
-        sys.stdout.write("Writing output into " + options.o + ".b1.txt, " + options.o + ".bars.txt, "
-                         + options.o + ".targ and " + options.o + ".gexf... ")
+        sys.stdout.write("Writing output into " + options.o.replace(' ', r'\ ') + ".b1.txt, "
+                         + options.o.replace(' ', r'\ ') + ".bars.txt, " + options.o.replace(' ', r'\ ')
+                         + ".targ and " + options.o.replace(' ', r'\ ') + ".gexf... ")
         sys.stdout.flush()
         f = open(options.o + ".b1.txt", 'w')
         f.write("start\t end\t b1\n")
@@ -766,8 +767,8 @@ if options.load is False:
         for nis, line in enumerate(pio[0][-1][0]):
             if line == 1:
                 f.write(str(pio[0][-1][1][nis]) + '\t' + str(pio[0][-1][1][nis]+pio[0][-1][2][nis]) + '\t'
-                        + str([qk[0] for qk in pio[0][-1][4][nis]]) + '\t' + str(pio[0][-1][6][dic[nis]][0]) + '\t' +
-                        str(pio[0][-1][6][dic[nis]][1]) + '\n')
+                        + str([qk[0] for qk in pio[0][-1][4][nis]]) + '\t' + str(poss[pio[0][-1][6][dic[nis]][0]]) + '\t' +
+                        str(poss[pio[0][-1][6][dic[nis]][1]]) + '\n')
         f.close()
 
         f = gzip.open(options.o + ".targ", 'wb')
@@ -795,4 +796,4 @@ if not opy:
         explore_barcode(pio, poss, pst, dist, labels)
     if not options.load:
         sys.stdout.write("Session can be restored using the command: TARGet -l " +
-                         str(os.path.normpath(options.o + ".targ")) + "\n")
+                         (options.o + ".targ").replace(' ', r'\ ') + "\n")
