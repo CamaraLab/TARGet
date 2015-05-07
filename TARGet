@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-TARGet v0.1. Reconstructs the un-rooted topological ancestral recombination graph (TARG) of a sample of
+TARGet. Partially reconstructs the un-rooted topological ancestral recombination graph (TARG) of a sample of
 sequences using persistent homology and gives information about its recombination events (genetic distances
 of parental strains, breaking-point positions and recombinant strains).
 
@@ -23,7 +23,6 @@ __credits__ = ["Pablo G. Camara", "Kevin Emmett", "Michael Lesnick", "Raul Rabad
 __copyright__ = "Copyright 2015, Rabadan's Lab, Columbia University"
 __date__ = "01/21/2015"
 __license__ = "GPLv3"
-__version__ = "0.1"
 __maintainer__ = "Pablo G. Camara"
 __email__ = "pg2495@colombia.edu"
 __status__ = "Development"
@@ -98,17 +97,17 @@ def segregating_sites(lista):
     return seg
 
 
-def subsample(lista, s, w):
-    """subsample(nsam,s,w): generator that gives all subsamples of the list of sequences lista, such that each
-    subsample has less than s elements and such that the maximum distance in the subsample is w sites.
+def subsample(lista, s, w, t):
+    """subsample(nsam,s,w,t): generator that gives all subsamples of the list of sequences lista, such that each
+    subsample has less than s and at least t elements and such that the maximum distance in the subsample is w sites.
     Returns a dictionary with keys being the set of segregating sites and values the corresponding list of sequences.
     """
     wt = min(w, len(lista[0]))
     nn = range(wt)
-    for pn in range(s):
+    for pn in range(t, s):
         oldi = list(itertools.combinations(nn, pn+1))
         for ty in oldi:
-            if len(ty) > 1:
+            if len(ty) > max(1, t):
                 sr = ['' for _ in range(len(lista))]
                 for qq in ty:
                     for mu in range(len(lista)):
@@ -118,7 +117,7 @@ def subsample(lista, s, w):
             pel = oldi
             oldi = [tuple([op + 1 for op in list(ui)]) for ui in pel]
             for ty in list((set(oldi) ^ set(pel)) & set(oldi)):
-                if len(ty) > 1:
+                if len(ty) > max(1, t):
                     sr = ['' for _ in range(len(lista))]
                     for qq in ty:
                         for mu in range(len(lista)):
@@ -268,12 +267,12 @@ def optimize_barcode(bb):
     return rr
 
 
-def compute_extended_barcode(lista, s, w, cores=1):
+def compute_extended_barcode(lista, s, w, t, cores=1):
     """compute_extended_barcode(lista,s,w): computes an optimized barcode using b1 and optimize_barcode(B).
     The parameters s and w are passed to subsample(lista,s,w). The parameter cores specifies the number of cores used
     for the computation.
     """
-    li = subsample(lista, s, w)
+    li = subsample(lista, s, w, t)
     bu = [[[[] for _ in range(7)] for _ in range(len(lista[0]))] for _ in range(len(lista[0]))]
     pool = multiprocessing.Pool(processes=cores, maxtasksperchild=1000)
     aset = [[l[0], pool.apply_async(wrap, [l[1]])] for l in li]
@@ -282,7 +281,7 @@ def compute_extended_barcode(lista, s, w, cores=1):
     for lidx, lm in enumerate(aset):
         bu[min(lm[0])][max(lm[0])] = max_barcode([lm[1].get() +
                                                   [[[min(lm[0]), max(lm[0])]]], bu[min(lm[0])][max(lm[0])]])
-        if lidx % (ljobs / 10):
+        if lidx % ((ljobs / 100)+1):
             sys.stdout.write('Completed {0} of {1} jobs\r'.format(lidx, ljobs))
             sys.stdout.flush()
 
@@ -416,7 +415,7 @@ def explore_barcode(brc, pose, rq, dista, li=()):
     global ry
     global br
     global ptu
-    global dic
+    global dic2
     global qm
     global cuna
     global distam
@@ -450,7 +449,7 @@ def explore_barcode(brc, pose, rq, dista, li=()):
                 x = numpy.linspace(bc[1][no], bc[1][no]+bc[2][no], 2)
                 y = [bb, bb]
                 bb += 1
-                line, = ax.plot(x, y, linewidth=3.0, c='b', picker=4)
+                line, = ax.plot(x, y, linewidth=2.0, c='b', picker=4)
                 linea.append(line)
             no += 1
         ax.set_ylim(0, bb)
@@ -492,8 +491,8 @@ def explore_barcode(brc, pose, rq, dista, li=()):
             except:
                 pos = networkx.spring_layout(g)
         networkx.draw_networkx_edges(g, pos, width=1)
-        networkx.draw_networkx_nodes(g, pos, node_color=(0.2, 0.8, 0.4), node_size=400, cmap=matplotlib.pyplot.cm.Blues)
-        networkx.draw_networkx_labels(g, pos, font_size=8, font_family='sans-serif')
+        networkx.draw_networkx_nodes(g, pos, node_color=(0.2, 0.8, 0.4), node_size=200, cmap=matplotlib.pyplot.cm.Blues)
+        networkx.draw_networkx_labels(g, pos, font_size=6, font_family='sans-serif')
         if hit is not None:
             cycles = []
             tl = 0
@@ -591,7 +590,7 @@ def explore_barcode(brc, pose, rq, dista, li=()):
         global ry
         global br
         global ptu
-        global dic
+        global dic2
         global qm
         global distam
 
@@ -621,7 +620,7 @@ def explore_barcode(brc, pose, rq, dista, li=()):
         ax3.cla()
         subplot3(tc, qm, ax3, hi=linea.index(event.artist))
         ax6.cla()
-        subplot6(br[6], ax6, hi=dic[tyu])
+        subplot6(br[6], ax6, hi=dic2[tyu])
 
         matplotlib.pyplot.draw()
         return True
@@ -631,12 +630,12 @@ def explore_barcode(brc, pose, rq, dista, li=()):
     lo = 0
     m = []
     p = []
-    dic = {}
+    dic2 = {}
     for q in br[0]:
         if q == -1:
             if len(p) > 0:
                 m.append(p)
-                dic[lo] = to
+                dic2[lo] = to
                 lo += 1
             p = []
             to += 1
@@ -645,7 +644,7 @@ def explore_barcode(brc, pose, rq, dista, li=()):
             t += 1
     if p:
         m.append(p)
-        dic[lo] = to
+        dic2[lo] = to
     old = None
     subplot1(tc, ax1)
     posa = subplot2(tc, ax2, distam)
@@ -656,9 +655,9 @@ def explore_barcode(brc, pose, rq, dista, li=()):
     ax5.set_xlabel('position')
     ax3.axes.get_xaxis().set_visible(False)
     ax3.axes.get_yaxis().set_visible(False)
-    fig.suptitle('TARGet v' + __version__, fontsize=20)
+    fig.suptitle('TARGet', fontsize=20)
     fig.canvas.mpl_connect('pick_event', onpick)
-    fig.canvas.set_window_title('TARGet v0.1')
+    fig.canvas.set_window_title('TARGet')
     matplotlib.pyplot.show()
 
 
@@ -666,134 +665,153 @@ def explore_barcode(brc, pose, rq, dista, li=()):
 MAIN CODE
 """
 
-sys.stdout.write("### TARGet v" + __version__ + ": Topological inference of reticulate evolution.\n\n")
 
-"""
-Parse command-line options
-"""
-usage = "%prog [options] FILE"
-parser = optparse.OptionParser(usage=usage)
-parser.add_option("-c", "--cores", dest="c", help="number of cores for multi-threading (default 1).",
-                  action="store", type="int", default=1)
-parser.add_option("-o", "--output", dest="o", help="prefix for output files (default 'out').",
-                  action="store", type="string", default="out")
-parser.add_option("-s", "--sites", dest="s", help="limit sub-sampling to sets with at most S segregating sites "
-                                                  "(default 5).", action="store", type="int", default=5)
-parser.add_option("-w", "--window", dest="w", help="limit sub-sampling to sets with segregating sites at a "
-                                                   "maximum distance of W segregating sites (default 13).",
-                  action="store", type="int", default=13)
-parser.add_option("-n", "--no-graphics", dest="quiet", help="disables graphical interface.", action="store_true",
-                  default=False)
-parser.add_option("-l", "--load", dest="load", help="restores previous session stored in FILE.", action="store_true",
-                  default=False)
+def main():
+    global options
 
+    sys.stdout.write("### TARGet: Topological inference of horizontal evolution.\n\n")
 
-(options, args) = parser.parse_args()
-if len(args) < 1:
-    sys.stdout.write("Error: input file not specified. For help type TARGet --help.\n")
-    sys.exit()
-
-if options.load is False:
     """
-    Parse input
+    Parse command-line options
     """
-    sys.stdout.write('Reading sequences... ')
-    sys.stdout.flush()
-    seqs = []
-    labels = []
-    cor = ''
-    try:
-        f = open(args[0], 'r')
-        flag = 0
-        for line in f:
-            if line[0] == '>':
-                labels.append(line.replace('>', '')[:-1])
-                if flag == 1:
-                    seqs.append(cor)
-                cor = ''
-                flag = 1
-            elif flag == 1:
-                cor += line.replace(' ', '')[:-1]
-        if flag == 1:
-            seqs.append(cor)
-    except IOError:
-        sys.stdout.write("Error: file not found.\n")
+    usage = "%prog [options] FILE"
+    parser = optparse.OptionParser(usage=usage)
+    parser.add_option("-c", "--cores", dest="c", help="number of cores for multi-threading (default 1).",
+                      action="store", type="int", default=1)
+    parser.add_option("-o", "--output", dest="o", help="prefix for output files (default 'out').",
+                      action="store", type="string", default="out")
+    parser.add_option("-s", "--sites", dest="s", help="limit sub-sampling to sets with at most S segregating sites "
+                                                      "(default 5).", action="store", type="int", default=5)
+    parser.add_option("-t", "--truncate", dest="t", help="limit sub-sampling to sets with at least T segregating sites"
+                                                      " (default 2).", action="store", type="int", default=2)
+    parser.add_option("-w", "--window", dest="w", help="limit sub-sampling to sets with segregating sites at a "
+                                                       "maximum distance of W segregating sites (default 13).",
+                      action="store", type="int", default=13)
+    parser.add_option("-n", "--no-graphics", dest="quiet", help="disables graphical interface.", action="store_true",
+                      default=False)
+    parser.add_option("-l", "--load", dest="load", help="restores previous session stored in FILE.", action="store_true",
+                      default=False)
+
+    (options, args) = parser.parse_args()
+    if len(args) < 1:
+        sys.stdout.write("Error: input file not specified. For help type TARGet --help.\n")
         sys.exit()
-    poss = segregating_sites(seqs)
-    sec = ['' for _ in range(len(seqs))]
-    for nis in poss:
-        for qk in range(len(seqs)):
-            sec[qk] += seqs[qk][nis]
-    sys.stdout.write(str(len(seqs)) + " sequences read.\n")
 
-    """
-    Persistent homology computation
-    """
-    sys.stdout.write("Computing persistent homology, this may take some minutes...\n")
-    sys.stdout.flush()
-    pio = compute_extended_barcode(sec, options.s, options.w, options.c)
-    culli = b1_matrix(pio)
-    pst = rates(culli)
-    dist = dist_list(sec).m
-    sys.stdout.write("Done!\n")
-
-    if culli[0][-1] > 0:
+    if options.load is False:
         """
-        Write output
+        Parse input
         """
-        sys.stdout.write("Writing output into " + options.o.replace(' ', r'\ ') + ".b1.txt, "
-                         + options.o.replace(' ', r'\ ') + ".bars.txt, " + options.o.replace(' ', r'\ ')
-                         + ".targ and " + options.o.replace(' ', r'\ ') + ".gexf... ")
+        sys.stdout.write('Reading sequences... ')
         sys.stdout.flush()
-        f = open(options.o + ".b1.txt", 'w')
-        f.write("start\t end\t b1\n")
-        for line in pst:
-            f.write(str(poss[line[0][0]]) + '\t' + str(poss[line[0][1]]) + '\t' + str(line[1]) + '\n')
-        f.close()
+        seqs = []
+        labels = []
+        cor = ''
+        try:
+            f = open(args[0], 'r')
+            flag = 0
+            for line in f:
+                if line[0] == '>':
+                    labels.append(line.replace('>', '')[:-1])
+                    if flag == 1:
+                        seqs.append(cor)
+                    cor = ''
+                    flag = 1
+                elif flag == 1:
+                    cor += line.replace(' ', '')[:-1]
+            if flag == 1:
+                seqs.append(cor)
+        except IOError:
+            sys.stdout.write("Error: file not found.\n")
+            sys.exit()
+        poss = segregating_sites(seqs)
+        sec = ['' for _ in range(len(seqs))]
+        for nis in poss:
+            for qk in range(len(seqs)):
+                sec[qk] += seqs[qk][nis]
+        sys.stdout.write(str(len(seqs)) + " sequences read.\n")
 
-        f = open(options.o + ".bars.txt", 'w')
-        f.write("birth\t death\t generators\t start\t end\n")
-
-        t = 0
-        to = -1
-        lo = 0
-        dic = {}
-        for q in pio[0][-1][0]:
-            if q == -1:
-                to += 1
-            dic[t] = to
-            t += 1
-
-        for nis, line in enumerate(pio[0][-1][0]):
-            if line == 1:
-                f.write(str(pio[0][-1][1][nis]) + '\t' + str(pio[0][-1][1][nis]+pio[0][-1][2][nis]) + '\t'
-                        + str([qk[0] for qk in pio[0][-1][4][nis]]) + '\t' + str(poss[pio[0][-1][6][dic[nis]][0]]) + '\t' +
-                        str(poss[pio[0][-1][6][dic[nis]][1]]) + '\n')
-        f.close()
-
-        f = gzip.open(options.o + ".targ", 'wb')
-        pickle.dump([pio, labels, poss, pst, dist], f)
-        f.close()
-        sys.stdout.write("Done!\n\n")
+        """
+        Persistent homology computation
+        """
+        sys.stdout.write("Computing persistent homology, this may take some minutes...\n")
         sys.stdout.flush()
-        opy = False
+        pio = compute_extended_barcode(sec, options.s, options.w, options.t-1, options.c)
+        culli = b1_matrix(pio)
+        pst = rates(culli)
+        dist = dist_list(sec).m
+        sys.stdout.write("Done!\n")
+
+        if culli[0][-1] > 0:
+            """
+            Write output
+            """
+            sys.stdout.write("Writing output into " + options.o.replace(' ', r'\ ') + ".b1.txt, "
+                             + options.o.replace(' ', r'\ ') + ".bars.txt, " + options.o.replace(' ', r'\ ')
+                             + ".targ and " + options.o.replace(' ', r'\ ') + ".gexf... ")
+            sys.stdout.flush()
+            f = open(options.o + ".b1.txt", 'w')
+            f.write("start\t end\t b1\n")
+            for line in pst:
+                f.write(str(poss[line[0][0]]) + '\t' + str(poss[line[0][1]]) + '\t' + str(line[1]) + '\n')
+            f.close()
+
+            f = open(options.o + ".bars.txt", 'w')
+            f.write("birth\t death\t generators\t start\t end\n")
+
+            t = 0
+            to = -1
+            dic2 = {}
+            for q in pio[0][-1][0]:
+                if q == -1:
+                    to += 1
+                dic2[t] = to
+                t += 1
+
+            for nis, line in enumerate(pio[0][-1][0]):
+                if line == 1:
+                    f.write(str(pio[0][-1][1][nis]) + '\t' + str(pio[0][-1][1][nis]+pio[0][-1][2][nis]) + '\t'
+                            + str([qk[0] for qk in pio[0][-1][4][nis]]) + '\t' + str(poss[pio[0][-1][6][dic2[nis]][0]])
+                            + '\t' + str(poss[pio[0][-1][6][dic2[nis]][1]]) + '\n')
+            f.close()
+
+            f = open(options.o + ".targ", 'wb')
+            pickle.dump([pio, labels, poss, pst, dist], f)
+            f.close()
+            sys.stdout.write("Done!\n\n")
+            sys.stdout.flush()
+            opy = False
+        else:
+            sys.stdout.write("No recombination detected in the sample.\n")
+            opy = True
     else:
-        sys.stdout.write("No recombination detected in the sample.\n")
-        opy = True
-else:
-    sys.stdout.write("Loading session...\n\n")
-    sys.stdout.flush()
-    f = gzip.open(args[0], 'rb')
-    [pio, labels, poss, pst, dist] = pickle.load(f)
-    f.close()
-    opy = False
+        sys.stdout.write("Loading session...\n\n")
+        sys.stdout.flush()
+        f = open(args[0], 'rb')
+        [pio, labels, poss, pst, dist] = pickle.load(f)
+        f.close()
+        opy = False
 
-"""
-Graphical interface
-"""
-if not opy:
-    if not options.quiet:
-        explore_barcode(pio, poss, pst, dist, labels)
-    if not options.load:
-        sys.stdout.write("Session can be restored using the command: TARGet -l " +
-                         (options.o + ".targ").replace(' ', r'\ ') + "\n")
+    """
+    Graphical interface
+    """
+    if not opy:
+        if not options.quiet:
+            explore_barcode(pio, poss, pst, dist, labels)
+        if not options.load:
+            sys.stdout.write("Session can be restored using the command: TARGet -l " +
+                             (options.o + ".targ").replace(' ', r'\ ') + "\n")
+
+PROFILER = False  # Profiler flag
+
+if __name__ == "__main__":
+    if PROFILER:
+        try:
+            import yappi
+            yappi.set_clock_type("wall")
+            yappi.start(True)
+            main()
+        finally:
+            yappi.stop()
+            stats = yappi.get_func_stats().print_all()
+    else:
+        main()

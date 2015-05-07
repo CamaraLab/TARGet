@@ -237,7 +237,7 @@
 1.2cm
 
 
-\title{{\LARGE TARGet v0.1}}
+\title{{\LARGE TARGet}}
 
 \makeatletter
 \def\@maketitle{
@@ -389,11 +389,11 @@ TARGet produces four output files. By default these are named:
 
 \noindent A different prefix (instead of \texttt{out}) for the output files can be specified with the command line option \texttt{-o <prefix>}.
 
-\subsubsection*{\texttt{-s \#} and \texttt{-w \#}}
+\subsubsection*{\texttt{-s \#}, \texttt{-t \#} and \texttt{-w \#}}
 
-As already stated, TARGet makes use of a sequence partitioning strategy similar to that of Myers and Griffiths~\cite{mg}. In most cases, considering all possible sequence partitions is  unnecessary and computationally too expensive. The number of sequence partitions that TARGet computes can be limited by the maximum number of segregating sites within each segment, and by the maximum distance (measured in number of segregating sites) between segment extrema. The default values for these two quantities are 5 and 13, respectively. The user can specify different values by means of the command line options \texttt{-s \#} and \texttt{-w \#}, respectively, where \texttt{\#} indicates the number of segregating sites.
+As already stated, TARGet makes use of a sequence partitioning strategy similar to that of Myers and Griffiths~\cite{mg}. In most cases, considering all possible sequence partitions is  unnecessary and computationally too expensive. The number of sequence partitions that TARGet computes can be limited by the maximum and minimum numbers of segregating sites within each segment, and by the maximum distance (measured in number of segregating sites) between segment extrema. The default values for these three quantities are 2, 5 and 13, respectively. The user can specify different values by means of the command line options \texttt{-s \#}, \texttt{-t \#} and \texttt{-w \#}, respectively, where \texttt{\#} indicates the number of segregating sites.
 
-In general, taking large values for these parameters can increase substantially the running time and memory requirements. We find that a useful strategy is to first run TARGet with default parameters. Then, increase as much as possible the number of segregating sites within segments using \texttt{-s \#}. This will improve the sensitivity and the genetic scale range. If the value of \texttt{-s \#} approaches that of \texttt{-w \#}, and running time and memory requirements are still good, you may want to also increase the maximum distance between segment extrema using \texttt{-w \#}.
+In general, taking large values for \texttt{-s \#} and \texttt{-w \#} can increase substantially the running time and memory requirements. We find that a useful strategy is to first run TARGet with default parameters. Then, increase as much as possible the number of segregating sites within segments using \texttt{-s \#}. This will improve the sensitivity and the genetic scale range. If the value of \texttt{-s \#} approaches that of \texttt{-w \#}, and running time and memory requirements are still good, you may want to also increase the maximum distance between segment extrema using \texttt{-w \#}. Sometimes you may capture large scale recombination loops, even if they could be split in smaller ones. Increasing \texttt{-t \#} is a good strategy in those situations.
 
 \subsubsection*{\texttt{-n}}
 
