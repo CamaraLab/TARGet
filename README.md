@@ -70,14 +70,11 @@ A detailed description of TARGet is found in the file `docs/Manual.pdf`.
 TARGet is distributed under the GNU General Public License (GPL v3). A
 copy of license is included in the file Copying.txt. 
 
-This program heavily relies on Dmitriy Morozov's Dionysus C++ library 
-(http://www.mrzv.org/software/dionysus/) for persistent homology 
+This program heavily relies on [Dmitriy Morozov's Dionysus C++ library](http://www.mrzv.org/software/dionysus/) for persistent homology 
 computations, the relevant parts of which are distributed together 
 with TARGet also under the terms of GPLv3 license.
 
 If you use TARGet in your research, please include in your reference 
 list the following publication:
 
-##### Camara, P.G., Levine, A.J. and Rabadan, R. (2015), "Inference of 
-ancestral recombination graphs through topological data analysis". In 
-preparation.
+##### Camara, P.G., Levine, A.J. and Rabadan, R. (2015), "Inference of ancestral recombination graphs through topological data analysis". _In preparation_.
