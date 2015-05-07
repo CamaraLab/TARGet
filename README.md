@@ -10,11 +10,8 @@ sequence alignment, under the assumption of no convergent evolution.
 It requires the following free software in the system:
 
 - Python 2.7 (Python 3 is currently not supported.)
-
 - CMake
-
 - Boost C++ libraries, including Boost.Python
-
 - NetworkX package for Python.
 
 For optimal visualization results it is recommended to have Graphviz 
