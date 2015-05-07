@@ -29,7 +29,6 @@ __status__ = "Development"
 
 
 import copy
-import gzip
 import inspect
 import itertools
 import matplotlib
