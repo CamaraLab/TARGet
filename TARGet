@@ -300,10 +300,9 @@ def pivotes(rr):
         cpivots = []
         while flagb == 1:
             cpivots = []
-            wy = 0
             flagb = 0
             flag = 0
-            for mj in pivots[:-1]:
+            for wy, mj in enumerate(pivots[:-1]):
                 if mj[1] <= pivots[wy+1][0] and flag == 0:
                     cpivots.append(mj)
                 elif mj[1] > pivots[wy+1][0] and flag == 0:
@@ -314,7 +313,6 @@ def pivotes(rr):
                     flag = 0
                 if wy == len(pivots)-2 and flag == 0:
                     cpivots.append(pivots[-1])
-                wy += 1
             pivots = copy.deepcopy(cpivots)
     else:
         cpivots = pivots
@@ -420,17 +418,15 @@ def explore_barcode(brc, pose, rq, dista, li=()):
     def subplot1(bc, ax):
         global linea
         bb = 1
-        no = 0
         matplotlib.pyplot.sca(ax)
         linea = []
-        for q in bc[0]:
+        for no, q in enumerate(bc[0]):
             if q == 1:
                 x = numpy.linspace(bc[1][no], bc[1][no]+bc[2][no], 2)
                 y = [bb, bb]
                 bb += 1
                 line, = ax.plot(x, y, linewidth=2.0, c='b', picker=4)
                 linea.append(line)
-            no += 1
         ax.set_ylim(0, bb)
         ax.set_xlim(0, max(numpy.array(bc[1])+numpy.array(bc[2]))+1)
         ax.set_xlabel('genetic distance')
@@ -584,15 +580,13 @@ def explore_barcode(brc, pose, rq, dista, li=()):
             for pu in old:
                 pu.set_color('b')
         pu = []
-        tyu = 0
-        for pu in m:
+        for tyu, pu in enumerate(m):
             if linea.index(event.artist) in pu:
                 old = []
                 for y in pu:
                     old.append(linea[y])
                     linea[y].set_color('y')
                 break
-            tyu += 1
         event.artist.set_color('r')
         ax2.cla()
         subplot2(tc, ax2, distam, pos=posa, hi=linea.index(event.artist), hit=pu)
@@ -733,14 +727,12 @@ def main():
             f = open(options.o + ".bars.txt", 'w')
             f.write("birth\t death\t generators\t start\t end\n")
 
-            t = 0
             to = -1
             dic2 = {}
-            for q in pio[0][-1][0]:
+            for t, q in enumerate(pio[0][-1][0]):
                 if q == -1:
                     to += 1
                 dic2[t] = to
-                t += 1
 
             for nis, line in enumerate(pio[0][-1][0]):
                 if line == 1:
