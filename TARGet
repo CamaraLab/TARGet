@@ -80,20 +80,22 @@ AUXILIARY FUNCTIONS
 
 def segregating_sites(lista):
     """segregating_sites(lista): returns a list of segregating positions in a list
-    of strings/sequences"""
-    l = len(lista[0])
-    nonseg = range(l)
-    seg = []
-    nn = len(lista)
-    for q1 in range(nn):
-        for q2 in range(q1+1, nn):
-            for i in nonseg:
-                if lista[q1][i] != lista[q2][i]:
-                    nonseg.remove(i)
-                    if i not in seg:
-                        seg.append(i)
-    seg.sort()
-    return seg
+    of strings/sequences, except for fully compatible positions"""
+    lista2 = numpy.array(map(list, lista))
+    pel = numpy.array(['' for _ in range(len(lista))])
+    pos = []
+    lista2t = numpy.transpose(lista2)
+    for n, m1 in enumerate(lista2t):
+        flagcomp = False
+        if len(set(m1)) > 1:
+            for m2 in lista2t:
+                if len(set(map(lambda x: ''.join(x), zip(m1, m2)))) > 3:
+                    flagcomp = True
+                    break
+            if flagcomp:
+                pel = map(lambda x: ''.join(x), zip(pel, m1))
+                pos.append(n)
+    return pos, pel
 
 
 def subsample(lista, s, w, t):
@@ -136,9 +138,7 @@ def compute_barcode(distances2, skeleton=2):
     inic = []
     larg = []
     dime = []
-    birthchain = []
     deathcycle = []
-    deathchain = []
 
     maxi = distances2.maxi
     distances = ExplicitDistances(distances2)
@@ -158,10 +158,7 @@ def compute_barcode(distances2, skeleton=2):
         if i.sign():
             bu = smap[i]
 
-            if bu.dimension() >= skeleton:
-                continue
-
-            if i.unpaired():
+            if bu.dimension() >= skeleton or i.unpaired():
                 continue
 
             d = smap[i.pair()]
@@ -169,10 +166,8 @@ def compute_barcode(distances2, skeleton=2):
                 inic.append(bu.data)
                 larg.append(d.data-bu.data)
                 dime.append(bu.dimension())
-                birthchain.append([maketuple(smap[ii]) for ii in i.chain])
                 deathcycle.append([maketuple(smap[ii]) for ii in i.pair().cycle])
-                deathchain.append([maketuple(smap[ii]) for ii in i.pair().chain])
-    return [dime, inic, larg, birthchain, deathcycle, deathchain]
+    return [dime, inic, larg, deathcycle]
 
 
 def hamming1(str1, str2):
@@ -198,12 +193,12 @@ def wrap(st):
     di = dict((nn, st.index(we)) for nn, we in enumerate(co))
     ru = compute_barcode(dist_list(co))
     po = []
-    for we in ru[4]:
+    for we in ru[3]:
         po2 = []
         for we2 in we:
             po2.append(tuple([tuple([di[tiu] for tiu in we2[0]]), we2[1]]))
         po.append(po2)
-    ru[4] = copy.deepcopy(po)
+    ru[3] = copy.deepcopy(po)
     return ru
 
 
@@ -212,9 +207,9 @@ def sum_barcodes(bb, cc):
     sum_barcode(bb, cc): combines barcodes bb and cc.
     """
     u = []
-    for nn in range(6):
+    for nn in range(4):
         u.append(bb[nn] + [-1] + cc[nn])
-    u.append(bb[6] + cc[6])
+    u.append(bb[4] + cc[4])
     return u
 
 
@@ -223,31 +218,16 @@ def max_barcode(bb):
     max_barcode(bb): returns the barcode in the list bb of barcodes that has the larger L_0 norm for H_1.
     If L_0 norms are equal returns the one with the larger number of segregating sites.
     """
-    nn = 0
     r = 0
     thres = 0
-    threslin = 0
-    for qq in bb:
+    for nn, qq in enumerate(bb):
         bbt = 0
-        bbt2 = 0
-        bb3 = 0
-        ui = 0
-        for u in qq[0]:
+        for ui, u in enumerate(qq[0]):
             if u == 1:
                 bbt += 1
-                bbt2 += qq[2][ui]
-            ui += 1
-        for w in qq[6]:
-            bb3 += w[1]-w[0]
         if bbt > thres:
             r = nn
             thres = bbt
-            threslin = bb3
-        elif bbt == thres:
-            if bb3 > threslin:
-                r = nn
-                threslin = bb3
-        nn += 1
     pur = bb[r]
     return pur
 
@@ -257,7 +237,7 @@ def optimize_barcode(bb):
     optimize_barcode(bb): implements a generalization of the algorithm of Myers and Griffiths 2010, to combine
     minimal barcodes bb[i][j] between segregating sites i and j. Only entries with i < j are needed.
     """
-    rr = [[[[] for _ in range(7)] for _ in range(len(bb))] for _ in range(len(bb))]
+    rr = [[[[] for _ in range(5)] for _ in range(len(bb))] for _ in range(len(bb))]
     k = 0
     while k < len(bb)-1:
         k += 1
@@ -272,7 +252,7 @@ def compute_extended_barcode(lista, s, w, t, cores=1):
     for the computation.
     """
     li = subsample(lista, s, w, t)
-    bu = [[[[] for _ in range(7)] for _ in range(len(lista[0]))] for _ in range(len(lista[0]))]
+    bu = [[[[] for _ in range(5)] for _ in range(len(lista[0]))] for _ in range(len(lista[0]))]
     pool = multiprocessing.Pool(processes=cores, maxtasksperchild=1000)
     aset = [[l[0], pool.apply_async(wrap, [l[1]])] for l in li]
     ljobs = len(aset)
@@ -280,7 +260,7 @@ def compute_extended_barcode(lista, s, w, t, cores=1):
     for lidx, lm in enumerate(aset):
         bu[min(lm[0])][max(lm[0])] = max_barcode([lm[1].get() +
                                                   [[[min(lm[0]), max(lm[0])]]], bu[min(lm[0])][max(lm[0])]])
-        if lidx % ((ljobs / 100)+1):
+        if lidx % ((ljobs / 1000)+1) == 0:
             sys.stdout.write('Completed {0} of {1} jobs\r'.format(lidx, ljobs))
             sys.stdout.flush()
 
@@ -461,7 +441,7 @@ def explore_barcode(brc, pose, rq, dista, li=()):
         cycles = []
         for n in range(len(bc[0])):
             if bc[0][n] == 1:
-                for ql in bc[4][n]:
+                for ql in bc[3][n]:
                     cycles.append(ql[0])
         cycles = list(set(cycles))
         g = networkx.Graph()
@@ -498,7 +478,7 @@ def explore_barcode(brc, pose, rq, dista, li=()):
             for n in range(len(bc[0])):
                 if bc[0][n] == 1:
                     if tl in hit and tl != hi:
-                        for ql in bc[4][n]:
+                        for ql in bc[3][n]:
                             cycles.append(ql[0])
                         networkx.draw_networkx_edges(g, pos, edgelist=cycles, width=2, edge_color='y')
                     tl += 1
@@ -508,7 +488,7 @@ def explore_barcode(brc, pose, rq, dista, li=()):
             for n in range(len(bc[0])):
                 if bc[0][n] == 1:
                     if tl == hi:
-                        for ql in bc[4][n]:
+                        for ql in bc[3][n]:
                             cycles.append(ql[0])
                         networkx.draw_networkx_edges(g, pos, edgelist=cycles, width=4, edge_color='r')
                         break
@@ -523,7 +503,7 @@ def explore_barcode(brc, pose, rq, dista, li=()):
         for n in range(len(bc[0])):
             if bc[0][n] == 1:
                 if tl == hi:
-                    for ql in bc[4][n]:
+                    for ql in bc[3][n]:
                         for mu in list(ql[0]):
                             nod.append(mu)
                 tl += 1
@@ -619,7 +599,7 @@ def explore_barcode(brc, pose, rq, dista, li=()):
         ax3.cla()
         subplot3(tc, qm, ax3, hi=linea.index(event.artist))
         ax6.cla()
-        subplot6(br[6], ax6, hi=dic2[tyu])
+        subplot6(br[4], ax6, hi=dic2[tyu])
 
         matplotlib.pyplot.draw()
         return True
@@ -648,7 +628,7 @@ def explore_barcode(brc, pose, rq, dista, li=()):
     subplot1(tc, ax1)
     posa = subplot2(tc, ax2, distam)
     ptu = breaking_points(b1_matrix(brc))
-    subplot5(ry, br[6], ptu, ax5)
+    subplot5(ry, br[4], ptu, ax5)
     for o in ry:
         ax5.text(float(cuna[o[0][0]]+cuna[o[0][1]])/2.0, 0.4, str(o[1]), fontsize=13, style='italic', ha='center')
     ax5.set_xlabel('position')
@@ -722,11 +702,7 @@ def main():
         except IOError:
             sys.stdout.write("Error: file not found.\n")
             sys.exit()
-        poss = segregating_sites(seqs)
-        sec = ['' for _ in range(len(seqs))]
-        for nis in poss:
-            for qk in range(len(seqs)):
-                sec[qk] += seqs[qk][nis]
+        poss, sec = segregating_sites(seqs)
         sys.stdout.write(str(len(seqs)) + " sequences read.\n")
 
         """
@@ -769,8 +745,8 @@ def main():
             for nis, line in enumerate(pio[0][-1][0]):
                 if line == 1:
                     f.write(str(pio[0][-1][1][nis]) + '\t' + str(pio[0][-1][1][nis]+pio[0][-1][2][nis]) + '\t'
-                            + str([qk[0] for qk in pio[0][-1][4][nis]]) + '\t' + str(poss[pio[0][-1][6][dic2[nis]][0]])
-                            + '\t' + str(poss[pio[0][-1][6][dic2[nis]][1]]) + '\n')
+                            + str([qk[0] for qk in pio[0][-1][3][nis]]) + '\t' + str(poss[pio[0][-1][4][dic2[nis]][0]])
+                            + '\t' + str(poss[pio[0][-1][4][dic2[nis]][1]]) + '\n')
             f.close()
 
             f = open(options.o + ".targ", 'wb')
