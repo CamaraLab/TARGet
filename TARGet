@@ -158,7 +158,7 @@ def compute_barcode(distances2, skeleton=2):
         if i.sign():
             bu = smap[i]
 
-            if bu.dimension() >= skeleton or i.unpaired():
+            if bu.dimension() != 1 or i.unpaired():
                 continue
 
             d = smap[i.pair()]
@@ -260,7 +260,7 @@ def compute_extended_barcode(lista, s, w, t, cores=1):
     for lidx, lm in enumerate(aset):
         bu[min(lm[0])][max(lm[0])] = max_barcode([lm[1].get() +
                                                   [[[min(lm[0]), max(lm[0])]]], bu[min(lm[0])][max(lm[0])]])
-        if lidx % ((ljobs / 1000)+1) == 0:
+        if lidx % ((ljobs / 40)+1) == 0:
             sys.stdout.write('Completed {0} of {1} jobs\r'.format(lidx, ljobs))
             sys.stdout.flush()
 
