@@ -696,8 +696,12 @@ def main():
         except IOError:
             sys.stdout.write("Error: file not found.\n")
             sys.exit()
+        if len(seqs) == 0:
+            sys.stdout.write("Error: no sequences found!\n")
+            sys.exit()
         poss, sec = segregating_sites(seqs)
-        sys.stdout.write(str(len(seqs)) + " sequences read.\n")
+        sys.stdout.write(str(len(seqs)) + " sequences read, " + str(len(poss)) +
+                         " segregating sites, excluding fully compatible sites.\n")
 
         """
         Persistent homology computation
@@ -721,7 +725,7 @@ def main():
             f = open(options.o + ".b1.txt", 'w')
             f.write("start\t end\t b1\n")
             for line in pst:
-                f.write(str(poss[line[0][0]]) + '\t' + str(poss[line[0][1]]) + '\t' + str(line[1]) + '\n')
+                f.write(str(1+poss[line[0][0]]) + '\t' + str(1+poss[line[0][1]]) + '\t' + str(line[1]) + '\n')
             f.close()
 
             f = open(options.o + ".bars.txt", 'w')
@@ -737,8 +741,9 @@ def main():
             for nis, line in enumerate(pio[0][-1][0]):
                 if line == 1:
                     f.write(str(pio[0][-1][1][nis]) + '\t' + str(pio[0][-1][1][nis]+pio[0][-1][2][nis]) + '\t'
-                            + str([qk[0] for qk in pio[0][-1][3][nis]]) + '\t' + str(poss[pio[0][-1][4][dic2[nis]][0]])
-                            + '\t' + str(poss[pio[0][-1][4][dic2[nis]][1]]) + '\n')
+                            + str([qk[0] for qk in pio[0][-1][3][nis]]) + '\t' +
+                            str(1+poss[pio[0][-1][4][dic2[nis]][0]]) + '\t' + str(1+poss[pio[0][-1][4][dic2[nis]][1]])
+                            + '\n')
             f.close()
 
             f = open(options.o + ".targ", 'wb')
