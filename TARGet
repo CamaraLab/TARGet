@@ -252,7 +252,7 @@ def compute_extended_barcode(lista, s, w, t, cores=1):
     for the computation.
     """
     li = subsample(lista, s, w, t)
-    bu = [[[[] for _ in range(5)] for _ in range(len(lista[0]))] for _ in range(len(lista[0]))]
+    bu = [[[[] for _ in range(4)]+[[[a, b]]] for a in range(len(lista[0]))] for b in range(len(lista[0]))]
     pool = multiprocessing.Pool(processes=cores, maxtasksperchild=1000)
     aset = [[l[0], pool.apply_async(wrap, [l[1]])] for l in li]
     ljobs = len(aset)
