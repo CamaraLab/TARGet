@@ -88,10 +88,13 @@ def segregating_sites(lista):
     for n, m1 in enumerate(lista2t):
         flagcomp = False
         if len(set(m1)) > 1:
-            for m2 in lista2t:
-                if len(set(map(lambda x: ''.join(x), zip(m1, m2)))) > 3:
-                    flagcomp = True
-                    break
+            if not options.exclude:
+                flagcomp = True
+            else:
+                for m2 in lista2t:
+                    if len(set(map(lambda x: ''.join(x), zip(m1, m2)))) > 3:
+                        flagcomp = True
+                        break
             if flagcomp:
                 pel = map(lambda x: ''.join(x), zip(pel, m1))
                 pos.append(n)
@@ -660,6 +663,8 @@ def main():
     parser.add_option("-w", "--window", dest="w", help="limit sub-sampling to sets with segregating sites at a "
                                                        "maximum distance of W segregating sites (default 13).",
                       action="store", type="int", default=13)
+    parser.add_option("-e", "--exclude-compatible", dest="exclude", help="excludes fully compatible segregating sites.",
+                      action="store_true", default=False)
     parser.add_option("-n", "--no-graphics", dest="quiet", help="disables graphical interface.", action="store_true",
                       default=False)
     parser.add_option("-l", "--load", dest="load", help="restores previous session stored in FILE.", action="store_true",
@@ -700,8 +705,11 @@ def main():
             sys.stdout.write("Error: no sequences found!\n")
             sys.exit()
         poss, sec = segregating_sites(seqs)
-        sys.stdout.write(str(len(seqs)) + " sequences read, " + str(len(poss)) +
-                         " segregating sites, excluding fully compatible sites.\n")
+        if options.exclude:
+            sys.stdout.write(str(len(seqs)) + " sequences read, " + str(len(poss)) +
+                             " segregating sites, excluding fully compatible sites.\n")
+        else:
+            sys.stdout.write(str(len(seqs)) + " sequences read, " + str(len(poss)) + " segregating sites.\n")
 
         """
         Persistent homology computation
