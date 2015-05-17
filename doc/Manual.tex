@@ -480,26 +480,14 @@ All positions listed in the columns \texttt{start} and \texttt{end} in files \te
 
 Finally, the file \texttt{out.gexf} contains the reconstructed tARG in GEXF (Graph Exchange XML Format), that can be opened by most network analysis programs.
 
-\section{Upcoming features}
-
-There are some features that may be implemented in future versions of TARGet:
-
-\begin{itemize}
-\item Currently TARGet measures distances between genetic sequences using a simple hamming metric. This can be limiting in situations where large gaps are present in the sequence alignment. The implementation of genetic scores that take into account gaps is therefore a desirable.
-
-\item The high sensitivity of TARGet to detect reticulate events is partially due to a segregating site sub-sampling strategy similar to that of \cite{mg}. In principle, one may further increase the sensitivity by sub-sampling in the space of sequences also. Namely, allowing the removal of sequences from the sample when that permits capturing new reticulate events. Whereas this procedure will increase running time substantially, it may be desirable in some cases where the sample is small.
-
-\item The choice of gametes participating in a reticulate event is in some cases not unique. Currently, target arbitrarily selects one of the possible sets of participating gametes. However, it would be desirable to perform this choice based on biological grounds, such as the smallest set of gametes and/or the set containing most closely related gametes.
-
-\item The algorithm that TARGet currently uses for localizing reticulate event break points across the genetic sequence is sub-optimal. As a consequence, in some complex situations some of the reticulate events listed in the file \texttt{out.bars.txt} may be missing in the file \texttt{out.b1.txt}. Hence, a better algorithm is desirable.
-\end{itemize}
-
 \begin{figure}[!ht]
 \centering
 \includegraphics[width=16cm, angle=0]{finches.png}
 \caption{Extended first-homology barcode and reconstructed tARG of a sample of 112 Darwin's finches, obtained with \texttt{TARGet} (the source FASTA file, \texttt{Darwing\_Finches.fa}, is included in the distribution). The extended first-homology barcode is shown in a), based on 140 homozygous SNPs present in a 9 megabase scaffold. In total, 13 recombination/gene flow events are captured in the extended barcode, having different genetic scales. Bars are coloured according to the position of the corresponding recombination breakpoint in the genome, as depicted in The number of recombination events detected at each genomic interval, as well as some of the orthologous genes present at regions where recombination events are detected, are indicated in c). The reconstructed tARG is presented in b). Recombination loops in the reconstructed tARG are outlined using the same code of colors. Leaf nodes that do not participate in any recombination event are also included in the graph, using a nearest neighbour algorithm based on genetic distance. Edge lengths are arbitrary. Figure taken from \cite{target}.
 \label{fig7}}
 \end{figure} 
+
+\newpage
 
 \begin{thebibliography}{99}
 

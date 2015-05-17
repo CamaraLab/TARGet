@@ -87,7 +87,7 @@ def segregating_sites(lista):
     lista2t = numpy.transpose(lista2)
     for n, m1 in enumerate(lista2t):
         flagcomp = False
-        if len(set(m1)) > 1:
+        if len(set(m1)) > 1 and '-' not in m1:
             if not options.exclude:
                 flagcomp = True
             else:
