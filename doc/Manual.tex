@@ -343,9 +343,7 @@ was used to compile TARGet and Boost libraries.
 
 \subsection*{Input file}
 
-The standard TARGet input is a FASTA file containing a DNA sequence alignment. For better performance, it is recommended to remove duplicated sequences from the input file before running TARGet. The current version cannot deal properly with large gaps (more than 2 or 3 bases long), so it is also advised to remove those loci from the alignment. A suitable gap treatment will be implemented in next versions of TARGet.
-
-Alternatively, the input file can contain only segregating sites (in bi-allelic 0/1 format). For instance:
+The standard TARGet input is a FASTA file containing a DNA sequence alignment. Alternatively, the input file can contain only segregating sites (in bi-allelic 0/1 format). For instance:
 
 \texttt{>Sequence ID 1}
 
@@ -358,6 +356,8 @@ Alternatively, the input file can contain only segregating sites (in bi-allelic 
 \texttt{\ldots}
 
 \noindent Note, however, that all positions in TARGet's output will refer in that case to segregating sites and not to genomic positions.
+
+The current version of TARGet does not take into account gaps (indicated as \texttt{-} characters in the input file). Sites containing gaps are automatically considered non-segregating positions.
 
 \subsection*{Command line options}
 
