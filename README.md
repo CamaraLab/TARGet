@@ -84,4 +84,4 @@ with TARGet also under the terms of GPLv3 license.
 If you use TARGet in your research, please include in your reference 
 list the following publication:
 
-##### Camara, P.G., Levine, A.J. and Rabadan, R. (2015), "Inference of ancestral recombination graphs through topological data analysis". _In preparation_.
+##### Camara, P.G., Levine, A.J. and Rabadan, R. (2015), "Inference of ancestral recombination graphs through topological data analysis". [arXiv:1505.05815](http://arxiv.org/abs/1505.05815).
