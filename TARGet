@@ -533,11 +533,11 @@ def explore_barcode(brc, pose, rq, dista, li=()):
         ax.broken_barh(inter, (0, 1), facecolors=rat)
         for o in pt:
             ax.plot((cuna[o]+0.5, cuna[o]+0.5), (0, 1), 'r-', linewidth=1)
-        ax.set_xlim(0, cuna[max(bres[-1])])
+        ax.set_xlim(min(cuna), max(cuna))
         ax.set_ylim(0, 1)
         ax.axes.get_yaxis().set_visible(False)
-        ax.axes.get_xaxis().set_ticks(numpy.arange(0,  cuna[max(bres[-1])]+1,
-                                                   max(1, int(float(cuna[max(bres[-1])]+1)/50.0))))
+        ax.axes.get_xaxis().set_ticks(numpy.arange(min(cuna),  max(cuna)+1,
+                                                   max(1, int(float(max(cuna)-min(cuna)+1)/50.0))))
         for tick in ax.xaxis.get_major_ticks():
                 tick.label.set_fontsize(8)
         return True
@@ -550,7 +550,7 @@ def explore_barcode(brc, pose, rq, dista, li=()):
             inter2.append((cuna[n[0]], cuna[n[1]]-cuna[n[0]]))
         if hi is not None:
             ax.broken_barh([inter2[hi]], (0, 1), facecolor='r')
-        ax.set_xlim(0, cuna[max(bres[-1])])
+        ax.set_xlim(min(cuna), max(cuna))
         ax.set_ylim(0, 1)
         ax.axes.get_yaxis().set_visible(False)
         ax.axes.get_xaxis().set_visible(False)
