@@ -399,6 +399,20 @@ In general, taking large values for \texttt{-s \#} and \texttt{-w \#} can increa
 
 It excludes from the computation segregating sites that are compatible with all the other sites in the sequence alignment. This speeds up the computation, but can slightly alter the genetic scales of some of the bars in the extended first-homology barcode.
 
+\subsubsection*{\texttt{-p <file\_pos>}}
+
+It allows to specify a file \texttt{<file\_pos>} containing a list of genomic positions for the sites in the FASTA file \texttt{<input\_file>}. This is useful when \texttt{<input\_file>} only contains segregating sites, but the user still wants the output produced by TARGet to refer to actual genomic positions. Each position in \texttt{<file\_pos>} should appear in a different line, for instance,
+
+\texttt{14}
+
+\texttt{127}
+
+\texttt{182}
+
+\texttt{\ldots}
+
+\noindent The number of lines in \texttt{<file\_pos>} must be equal to the number of sites in the file \texttt{<input\_file>}.
+
 \subsubsection*{\texttt{-n}}
 
 By default, when TARGet finishes computing the extended barcode and tARG of the sequence alignment, it opens a graphical interface that allows exploring the results interactively. The use of the graphical interface is described below. The user may want to change this behavior, so that the graphical interface is not automatically opened. This can be achieved by means of the command line option \texttt{-n}. Note that it is always possible to resume previous results by using the command line option \texttt{-l}, described below, without having to recompute the tARG.
@@ -479,6 +493,8 @@ The file \texttt{out.b1.txt} contains a tab separated table with columns:
 All positions listed in the columns \texttt{start} and \texttt{end} in files \texttt{out.bars.txt} and \texttt{out.b1.txt}, refer to genomic positions except when the input file contains only segregating sites.
 
 Finally, the file \texttt{out.gexf} contains the reconstructed tARG in GEXF (Graph Exchange XML Format), that can be opened by most network analysis programs.
+
+\newpage
 
 \begin{figure}[!ht]
 \centering
