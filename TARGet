@@ -666,8 +666,7 @@ def main():
     parser.add_option("-e", "--exclude-compatible", dest="exclude", help="excludes fully compatible segregating sites.",
                       action="store_true", default=False)
     parser.add_option("-p", "--positions", dest="file_pos", help="specifies a file FILE_POS containing the genomic "
-                                                                 "positions of segregating sites, when FILE only "
-                                                                 "contains segregating sites", action="store",
+                                                                 "positions of segregating sites.", action="store",
                       default="")
     parser.add_option("-n", "--no-graphics", dest="quiet", help="disables graphical interface.", action="store_true",
                       default=False)
