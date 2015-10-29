@@ -355,7 +355,7 @@ The standard TARGet input is a FASTA file containing a DNA sequence alignment. A
 
 \texttt{\ldots}
 
-\noindent Note, however, that all positions in TARGet's output will refer in that case to segregating sites and not to genomic positions.
+\noindent Note, however, that all positions in TARGet's output will refer in that case to segregating sites and not to genomic positions, unless they are specified through the command line option \texttt{-p} (see below).
 
 The current version of TARGet does not take into account gaps (indicated as \texttt{-} characters in the input file). Sites containing gaps are automatically considered non-segregating positions.
 
@@ -417,6 +417,10 @@ It allows to specify a file \texttt{<file\_pos>} containing a list of genomic po
 
 By default, when TARGet finishes computing the extended barcode and tARG of the sequence alignment, it opens a graphical interface that allows exploring the results interactively. The use of the graphical interface is described below. The user may want to change this behavior, so that the graphical interface is not automatically opened. This can be achieved by means of the command line option \texttt{-n}. Note that it is always possible to resume previous results by using the command line option \texttt{-l}, described below, without having to recompute the tARG.
 
+\subsubsection*{\texttt{-i}}
+
+It enables an algorithm for further localizing the genomic location of reticulate events. It may increase substantially the running time of TARGet when the sequence is long and with many reticulate events. The current implementation of this algorithm is sub-optimal, and in complex situations some of the reticulate events present in the extended barcode may be missed by this algorithm.
+
 \subsubsection*{\texttt{-l}}
 
 One of the three output files that TARGet produces is a binary file (by default named \texttt{out.targ}) containing all the information required to open a previously computed extended barcode and tARG in the graphical interface. You may use the command line option \texttt{-l} to open a \texttt{.targ} file. In this case the input file is not a FASTA file, but a \texttt{.targ} file.
@@ -460,7 +464,7 @@ The extended barcode of the sample is shown in figure \ref{fig1}c. It has two ba
 
 \subsection*{Graphical interface}
 
-TARGet has a interactive graphical interface that permits exploring the results. A snapshot of the interface is shown in figure \ref{fig2}. The interface consists of 5 different panels. Panel 1 contains the extended barcode of the sequence alignment, depicting genetic scales of reticulate events, as described above. Panel 2 contains the reconstructed tARG of the sample. Panel 5 represents a set of intervals on the genetic sequence, indicating the number of reticulate events of the tARG (the so-called \emph{first Betti number}) with break points in the interval. In addition, loci at which the Hudson-Kaplan's four gamete test \cite{hk} fails across consecutive segregating sites are also indicated in panel 5 (red lines). Positions in that panel refer to genomic positions, except when the input file contains only segregating sites. 
+TARGet has a interactive graphical interface that permits exploring the results. A snapshot of the interface is shown in figure \ref{fig2}. The interface consists of 5 different panels. Panel 1 contains the extended barcode of the sequence alignment, depicting genetic scales of reticulate events, as described above. Panel 2 contains the reconstructed tARG of the sample. Panel 5 represents a set of intervals on the genetic sequence, indicating the number of reticulate events of the tARG (the so-called \emph{first Betti number}) with break points in the interval. In addition, loci at which the Hudson-Kaplan's four gamete test \cite{hk} fails across consecutive segregating sites are also indicated in panel 5 (red lines). Positions in that panel refer to genomic positions, except when the input file contains only segregating sites and the command line option \texttt{-p} is not specified. 
 
 When selecting a bar in panel 1, the corresponding loop is marked red in the tARG representation of panel 2, and panel 3 list the identifiers of the genetic sequences that participate in that reticulate event (see figure \ref{fig2}). 
 
@@ -488,9 +492,9 @@ The file \texttt{out.b1.txt} contains a tab separated table with columns:
 
 \texttt{start\ \ \ \ \ end\ \ \ \ \ b1}
 
-\noindent Each row represents an interval of the genetic sequence constraining as much as possible the location of reticulate events break points. The first and second columns of the table contain the start and end positions of the interval, respectively. The third column is the number of reticulate events with break points in that interval. Note that currently the algorithm that TARGet uses to constrain the location of break points is sub-optimal, and in complex situations some of the reticulate events listed in the file \texttt{out.bars.txt} may be missing in the file \texttt{out.b1.txt}.
+\noindent Each row represents an interval of the genetic sequence constraining as much as possible the location of reticulate events break points. The first and second columns of the table contain the start and end positions of the interval, respectively. The third column is the number of reticulate events with break points in that interval. Note that currently the algorithm that TARGet uses to constrain the location of break points when command line option \texttt{-i} is specified is sub-optimal, and in complex situations some of the reticulate events listed in the file \texttt{out.bars.txt} may be missing in the file \texttt{out.b1.txt}.
 
-All positions listed in the columns \texttt{start} and \texttt{end} in files \texttt{out.bars.txt} and \texttt{out.b1.txt}, refer to genomic positions except when the input file contains only segregating sites.
+All positions listed in the columns \texttt{start} and \texttt{end} in files \texttt{out.bars.txt} and \texttt{out.b1.txt}, refer to genomic positions except when the input file contains only segregating sites and the command line option \texttt{-p} is not specified.
 
 Finally, the file \texttt{out.gexf} contains the reconstructed tARG in GEXF (Graph Exchange XML Format), that can be opened by most network analysis programs.
 

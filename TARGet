@@ -670,6 +670,9 @@ def main():
                       default="")
     parser.add_option("-n", "--no-graphics", dest="quiet", help="disables graphical interface.", action="store_true",
                       default=False)
+    parser.add_option("-i", "--improved-localization", dest="ban", help="enables algorithm for improved localization "
+                                                                        "of breakpoints.", action="store_true",
+                      default=False)
     parser.add_option("-l", "--load", dest="load", help="restores previous session stored in FILE.",
                       action="store_true", default=False)
 
@@ -737,12 +740,10 @@ def main():
         sys.stdout.write("Computing persistent homology, this may take some minutes...\n")
         sys.stdout.flush()
         pio = compute_extended_barcode(sec, options.s, options.w, options.t-1, options.c)
-        culli = b1_matrix(pio)
-        pst = rates(culli)
         dist = dist_list(sec).m
         sys.stdout.write("Done!\n")
 
-        if culli[0][-1] > 0:
+        if 1 in pio[0][-1][0]:
             """
             Write output
             """
@@ -750,11 +751,6 @@ def main():
                              + options.o.replace(' ', r'\ ') + ".bars.txt, " + options.o.replace(' ', r'\ ')
                              + ".targ and " + options.o.replace(' ', r'\ ') + ".gexf... ")
             sys.stdout.flush()
-            f = open(options.o + ".b1.txt", 'w')
-            f.write("start\t end\t b1\n")
-            for line in pst:
-                f.write(str(1+poss[line[0][0]]) + '\t' + str(1+poss[line[0][1]]) + '\t' + str(line[1]) + '\n')
-            f.close()
 
             f = open(options.o + ".bars.txt", 'w')
             f.write("birth\t death\t generators\t start\t end\n")
@@ -766,12 +762,30 @@ def main():
                     to += 1
                 dic2[t] = to
 
+            mamut = {}
             for nis, line in enumerate(pio[0][-1][0]):
                 if line == 1:
                     f.write(str(pio[0][-1][1][nis]) + '\t' + str(pio[0][-1][1][nis]+pio[0][-1][2][nis]) + '\t'
                             + str([qk[0] for qk in pio[0][-1][3][nis]]) + '\t' +
                             str(1+poss[pio[0][-1][4][dic2[nis]][0]]) + '\t' + str(1+poss[pio[0][-1][4][dic2[nis]][1]])
                             + '\n')
+                    if (pio[0][-1][4][dic2[nis]][0], pio[0][-1][4][dic2[nis]][1]) not in mamut.keys():
+                        mamut[(pio[0][-1][4][dic2[nis]][0], pio[0][-1][4][dic2[nis]][1])] = 1
+                    else:
+                        mamut[(pio[0][-1][4][dic2[nis]][0], pio[0][-1][4][dic2[nis]][1])] += 1
+            f.close()
+
+            f = open(options.o + ".b1.txt", 'w')
+            f.write("start\t end\t b1\n")
+            if options.ban:
+                culli = b1_matrix(pio)
+                pst = rates(culli)
+            else:
+                pst = []
+                for line in mamut.keys():
+                    pst.append([line, mamut[line]])
+            for line in pst:
+                f.write(str(1+poss[line[0][0]]) + '\t' + str(1+poss[line[0][1]]) + '\t' + str(line[1]) + '\n')
             f.close()
 
             f = open(options.o + ".targ", 'wb')
