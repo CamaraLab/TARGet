@@ -173,28 +173,55 @@ def compute_barcode(distances2, skeleton=2):
     return [dime, inic, larg, deathcycle]
 
 
-def hamming1(str1, str2):
+def transverse(str1, str2):
+    """transverse: given two strings, returns the number of transitions and transversions"""
+    transitions = ["AG", "GA", "CT", "TC"]
+    transversions = ["AC", "CA", "AT", "TA", "GC", "CG", "GT", "TG"]
+    ctransitions = 0
+    ctransversions = 0
+    for m1, m2 in zip(str1, str2):
+        p = (m1+m2).upper()
+        if p in transitions:
+            ctransitions += 1
+        elif p in transversions:
+            ctransversions += 1
+    return ctransitions, ctransversions
+
+
+def hamming1(str1, str2, lpo):
     """hamming1(str1,str2): returns number of differences between strings str1 and str2"""
-    return sum(itertools.imap(str.__ne__, str1, str2))
+    leng = poss[lpo[1]] - poss[lpo[0]]
+    pto = sum(itertools.imap(str.__ne__, str1, str2))
+    if not options.t92:
+        return pto
+    elif model == 'JC':
+        return -0.75*numpy.log(1-(0.75*pto/float(leng)))
+    elif model == 'K':
+        p, q = transverse(str1, str2)
+        return -0.5*numpy.log(1-(2.0*p/float(leng))-(q/float(leng))) - 0.25*numpy.log(1-(2.0*q/float(leng)))
+    elif model == 'T':
+        p, q = transverse(str1, str2)
+        h = 2*GC*(1-GC)
+        return -h*numpy.log(1-(p/(h*float(leng)))-(q/float(leng))) - 0.5*(1-h)*numpy.log(1-(2.0*q/float(leng)))
 
 
-def dist_list(lista):
+def dist_list(lista, lpo):
     """dist_list(lista): returns Distance object constructed from haplotype data stored in lista
     as a list of strings"""
     nn = len(lista)
     mik = numpy.zeros((nn, nn))
     for pi in range(nn):
         for pj in range(nn):
-            mik[pi][pj] = hamming1(lista[pi], lista[pj])
+            mik[pi][pj] = hamming1(lista[pi], lista[pj], lpo)
     distances = Distances(mik, nn)
     return distances
 
 
-def wrap(st):
+def wrap(st, lpo):
     """wrap(st): Auxiliary wrapped function for compute_extended_barcode"""
     co = list(set(st))
     di = dict((nn, st.index(we)) for nn, we in enumerate(co))
-    ru = compute_barcode(dist_list(co))
+    ru = compute_barcode(dist_list(co, lpo))
     po = []
     for we in ru[3]:
         po2 = []
@@ -257,7 +284,7 @@ def compute_extended_barcode(lista, s, w, t, cores=1):
     li = subsample(lista, s, w, t)
     bu = [[[[] for _ in range(4)]+[[[a, b]]] for a in range(len(lista[0]))] for b in range(len(lista[0]))]
     pool = multiprocessing.Pool(processes=cores, maxtasksperchild=1000)
-    aset = [[l[0], pool.apply_async(wrap, [l[1]])] for l in li]
+    aset = [[l[0], pool.apply_async(wrap, [l[1], (min(l[0]), max(l[0]))])] for l in li]
     ljobs = len(aset)
 
     for lidx, lm in enumerate(aset):
@@ -644,6 +671,9 @@ MAIN CODE
 
 def main():
     global options
+    global model
+    global GC
+    global poss
 
     sys.stdout.write("### TARGet: Topological inference of horizontal evolution.\n\n")
 
@@ -675,6 +705,8 @@ def main():
                       default=False)
     parser.add_option("-l", "--load", dest="load", help="restores previous session stored in FILE.",
                       action="store_true", default=False)
+    parser.add_option("--t92", dest="t92", help="uses T92 model for nucleotide substitution.", action="store_true",
+                      default=False)
 
     (options, args) = parser.parse_args()
     if len(args) < 1:
@@ -733,6 +765,24 @@ def main():
                              " segregating sites, excluding fully compatible sites.\n")
         else:
             sys.stdout.write(str(len(seqs)) + " sequences read, " + str(len(poss)) + " segregating sites.\n")
+        if options.t92:
+            x = ''
+            for c in seqs:
+                x += c
+            GC = x.count('g') + x.count('G') + x.count('C') + x.count('c')
+            AT = x.count('a') + x.count('A') + x.count('T') + x.count('t')
+            if len(x) != GC + AT + x.count('-'):
+                sys.stdout.write("Warning: --t92 was specified, however it is not possible to distinguish "
+                                 "transitions/transversions from the input file. Using JC68 "
+                                 "model instead.\n")
+                model = 'JC'
+            elif options.file_pos != "":
+                sys.stdout.write("Warning: --t92 was specified, however it is not possible to estimate GC "
+                                 "content from the input file. Using K80 model instead.\n")
+                model = 'K'
+            else:
+                GC = float(GC)/(float(GC)+float(AT))
+                model = 'T'
 
         """
         Persistent homology computation
@@ -740,7 +790,7 @@ def main():
         sys.stdout.write("Computing persistent homology, this may take some minutes...\n")
         sys.stdout.flush()
         pio = compute_extended_barcode(sec, options.s, options.w, options.t-1, options.c)
-        dist = dist_list(sec).m
+        dist = dist_list(sec, (0, len(poss)-1)).m
         sys.stdout.write("Done!\n")
 
         if 1 in pio[0][-1][0]:

@@ -261,7 +261,7 @@
 \label{sec1}
 
 TARGet is a light-weight application for reconstructing non-vertical evolutionary histories from sampled genetic sequences. TARGet makes use of persistent homology \cite{ph, ph2}, a tool from topological data analysis, to infer information about the minimal set of reticulate events (recombination, re-assortment, etc) that are needed 
-to explain a sequence alignment, under the assumption of no convergent evolution. It exploits a sequence partitioning strategy similar to that of ref.~\cite{mg}, but the topological nature of TARGet permits inferring phylogenetic information about reticulate events, like the participating gametes or the associated genetic scales. Specifically, TARGet computes the extended first-homology barcode of the sequence alignment and attempts to reconstruct the topological ancestral recombination graph (tARG), which is closely related (in most cases actually identical) to minimal ARGs \cite{target}. 
+to explain a sequence alignment, under the assumption of no convergent evolution. It exploits a sequence partitioning strategy similar to that of ref.~\cite{mg}, but the topological nature of TARGet permits inferring phylogenetic information about reticulate events, like the participating gametes or the associated genetic scales. Specifically, TARGet computes the first-homology barcode ensemble of the sequence alignment and attempts to reconstruct the topological ancestral recombination graph (tARG), which is closely related (in most cases actually identical) to minimal ARGs \cite{target}. 
 
 The advantage of working with barcodes and tARGs is that they can be computed in polynomial time, without having to perform exhaustive explorations of the ARG space. Hence, as opposed to standard methods of ancestral recombination graph (ARG) reconstruction, TARGet is a fast multi-threaded algorithm that can be applied to large datasets, consisting of hundreds of genetic sequences. It is therefore a great tool for exploring reticulate evolution not only in virus and bacteria, but also in eukaryotes.
 
@@ -397,7 +397,7 @@ In general, taking large values for \texttt{-s \#} and \texttt{-w \#} can increa
 
 \subsubsection*{\texttt{-e}}
 
-It excludes from the computation segregating sites that are compatible with all the other sites in the sequence alignment. This speeds up the computation, but can slightly alter the genetic scales of some of the bars in the extended first-homology barcode.
+It excludes from the computation segregating sites that are compatible with all the other sites in the sequence alignment. This speeds up the computation, but can slightly alter the genetic scales of some of the bars in the first-homology barcode ensemble.
 
 \subsubsection*{\texttt{-p <file\_pos>}}
 
@@ -415,19 +415,24 @@ It allows to specify a file \texttt{<file\_pos>} containing a list of genomic po
 
 \subsubsection*{\texttt{-n}}
 
-By default, when TARGet finishes computing the extended barcode and tARG of the sequence alignment, it opens a graphical interface that allows exploring the results interactively. The use of the graphical interface is described below. The user may want to change this behavior, so that the graphical interface is not automatically opened. This can be achieved by means of the command line option \texttt{-n}. Note that it is always possible to resume previous results by using the command line option \texttt{-l}, described below, without having to recompute the tARG.
+By default, when TARGet finishes computing the barcode ensemble and tARG of the sequence alignment, it opens a graphical interface that allows exploring the results interactively. The use of the graphical interface is described below. The user may want to change this behavior, so that the graphical interface is not automatically opened. This can be achieved by means of the command line option \texttt{-n}. Note that it is always possible to resume previous results by using the command line option \texttt{-l}, described below, without having to recompute the tARG.
 
 \subsubsection*{\texttt{-i}}
 
-It enables an algorithm for further localizing the genomic location of reticulate events. It may increase substantially the running time of TARGet when the sequence is long and with many reticulate events. The current implementation of this algorithm is sub-optimal, and in complex situations some of the reticulate events present in the extended barcode may be missed by this algorithm.
+It enables an algorithm for further localizing the genomic location of reticulate events. It may increase substantially the running time of TARGet when the sequence is long and with many reticulate events. The current implementation of this algorithm is sub-optimal, and in complex situations some of the reticulate events present in the barcode ensemble may be missed by this algorithm.
 
 \subsubsection*{\texttt{-l}}
 
-One of the three output files that TARGet produces is a binary file (by default named \texttt{out.targ}) containing all the information required to open a previously computed extended barcode and tARG in the graphical interface. You may use the command line option \texttt{-l} to open a \texttt{.targ} file. In this case the input file is not a FASTA file, but a \texttt{.targ} file.
+One of the three output files that TARGet produces is a binary file (by default named \texttt{out.targ}) containing all the information required to open a previously computed barcode ensemble and tARG in the graphical interface. You may use the command line option \texttt{-l} to open a \texttt{.targ} file. In this case the input file is not a FASTA file, but a \texttt{.targ} file.
+
+\subsubsection*{\texttt{--t92}}
+
+By default TARGet utilizes Hamming distance to determine genetic distances between sequences. Using the command line option \texttt{--t92}, TARGet will use instead a T92 model \cite{t92} to estimate genetic distances. To that end, full nucleotide sequences are expected in the input file. If only the sequence at segregating sites is specified (through the command line option \texttt{-p}), and \texttt{--t92} is used, TARGet will make instead use of a K80 model \cite{k80}. If genotype information is specified in a binary form, and \texttt{--t92} is used, then TARGet will make use of a JC69 model \cite{jc69}.
+
 
 \section{Understanding the output}
 
-TARGet produces an extended barcode associated to the sequence alignment and attempts to reconstruct the tARG. Each bar in the extended barcode represents a reticulate event in the sample history. Bar positions and lengths are related to the genetic scales of the gametes that took part in the reticulate event, measured in number of mutations. Assuming good sampling density, reticulate events involving genetically very different parental sequences (e.g. recombination of strains that diverged long time ago) are represented by long bars at high genetic scales in the barcode, whereas reticulate events involving closely related parental sequences appear as short bars at low genetic scales.
+TARGet produces an barcode ensemble associated to the sequence alignment and attempts to reconstruct the tARG. Each bar in the barcode ensemble represents a reticulate event in the sample history. Bar positions and lengths are related to the genetic scales of the gametes that took part in the reticulate event, measured in number of mutations. Assuming good sampling density, reticulate events involving genetically very different parental sequences (e.g. recombination of strains that diverged long time ago) are represented by long bars at high genetic scales in the barcode, whereas reticulate events involving closely related parental sequences appear as short bars at low genetic scales.
 
 For the sake of illustration, consider a sample of 7 sequences with the following genotype (these can be found in the file \texttt{test.fa}):
 
@@ -447,12 +452,12 @@ For the sake of illustration, consider a sample of 7 sequences with the followin
 
 \noindent Minimal histories of the sample involve 2 recombination events under the assumption of no convergent evolution. An example of minimal history is shown in figure \ref{fig1}a. The corresponding tARG, depicted in figure \ref{fig1}b, represents the unrooted topology of minimal ARGs \cite{target}. Hence, it contains the two loops present in the minimal ARG of figure \ref{fig1}a, and allows identifying the specific gametes that participate in each recombination event. 
 
-The extended barcode of the sample is shown in figure \ref{fig1}c. It has two bars, corresponding to the two recombination events of minimal ARGs. The shortest bar is associated to the recombination between gametes 0 and 3, which differ on a single nucleotide. The longest bar is associated to the recombination between gametes 0 and 1, which differ in 6 nucleotides. The location of recombination break points is also shown in figure \ref{fig1}c.
+The barcode ensemble of the sample is shown in figure \ref{fig1}c. It has two bars, corresponding to the two recombination events of minimal ARGs. The shortest bar is associated to the recombination between gametes 0 and 3, which differ on a single nucleotide. The longest bar is associated to the recombination between gametes 0 and 1, which differ in 6 nucleotides. The location of recombination break points is also shown in figure \ref{fig1}c.
 
 \begin{figure}[!ht]
 \centering
 \includegraphics[width=15.8cm, angle=0]{draw.png}
-\caption{a) Example of minimal ARG describing a minimal evolutionary history for the sample of 7 sequences considered in the text. Mutation events in the $i$-th position are represented as $m_i$. Root node is marked in red and leaf nodes are marked in green. The ARG involves two recombination events. b) tARG associated to the sample. c) Extended barcode associated to the sample.
+\caption{a) Example of minimal ARG describing a minimal evolutionary history for the sample of 7 sequences considered in the text. Mutation events in the $i$-th position are represented as $m_i$. Root node is marked in red and leaf nodes are marked in green. The ARG involves two recombination events. b) tARG associated to the sample. c) Barcode ensemble associated to the sample.
 \label{fig1}}
 \end{figure} 
 
@@ -464,11 +469,11 @@ The extended barcode of the sample is shown in figure \ref{fig1}c. It has two ba
 
 \subsection*{Graphical interface}
 
-TARGet has a interactive graphical interface that permits exploring the results. A snapshot of the interface is shown in figure \ref{fig2}. The interface consists of 5 different panels. Panel 1 contains the extended barcode of the sequence alignment, depicting genetic scales of reticulate events, as described above. Panel 2 contains the reconstructed tARG of the sample. Panel 5 represents a set of intervals on the genetic sequence, indicating the number of reticulate events of the tARG (the so-called \emph{first Betti number}) with break points in the interval. In addition, loci at which the Hudson-Kaplan's four gamete test \cite{hk} fails across consecutive segregating sites are also indicated in panel 5 (red lines). Positions in that panel refer to genomic positions, except when the input file contains only segregating sites and the command line option \texttt{-p} is not specified. 
+TARGet has a interactive graphical interface that permits exploring the results. A snapshot of the interface is shown in figure \ref{fig2}. The interface consists of 5 different panels. Panel 1 contains the barcode ensemble of the sequence alignment, depicting genetic scales of reticulate events, as described above. Panel 2 contains the reconstructed tARG of the sample. Panel 5 represents a set of intervals on the genetic sequence, indicating the number of reticulate events of the tARG (the so-called \emph{first Betti number}) with break points in the interval. In addition, loci at which the Hudson-Kaplan's four gamete test \cite{hk} fails across consecutive segregating sites are also indicated in panel 5 (red lines). Positions in that panel refer to genomic positions, except when the input file contains only segregating sites and the command line option \texttt{-p} is not specified. 
 
 When selecting a bar in panel 1, the corresponding loop is marked red in the tARG representation of panel 2, and panel 3 list the identifiers of the genetic sequences that participate in that reticulate event (see figure \ref{fig2}). 
 
-Generally, the extended barcode is built out of various sequence blocks \cite{target}, following a partitioning algorithm similar to that of \cite{mg}. Hence, when selecting a bar in panel 1, other bars belonging to the same building block are also highlighted in yellow, as well as the corresponding cycles in panel 2. In addition, panel 4 indicates the part of the genetic sequence that is associated to that building block.
+Generally, the barcode ensemble is built out of various sequence blocks \cite{target}, following a partitioning algorithm similar to that of \cite{mg}. Hence, when selecting a bar in panel 1, other bars belonging to the same building block are also highlighted in yellow, as well as the corresponding cycles in panel 2. In addition, panel 4 indicates the part of the genetic sequence that is associated to that building block.
 
 \begin{figure}[!ht]
 \centering
@@ -482,11 +487,11 @@ Generally, the extended barcode is built out of various sequence blocks \cite{ta
 
 TARGet produces four output files, by default named \texttt{out.bars.txt}, \texttt{out.b1.txt}, \texttt{out.targ} and \texttt{out.gexf}. We have described above the use of the binary file \texttt{out.targ}, containing all the information required to resume a graphical session.
 
-The file \texttt{out.bars.txt} contains a tab separated table listing all reticulate events in the extended barcode. The format is:
+The file \texttt{out.bars.txt} contains a tab separated table listing all reticulate events in the barcode ensemble. The format is:
 
 \texttt{birth\ \ \ \ \ death\ \ \ \ \ generators\ \ \ \ \ start\ \ \ \ \ end}
 
-\noindent Each row represents a single reticulate event in the tARG. The first two columns in the table contain the genetic scales of the two bar extrema in the extended barcode. The third column contains a list of the edges that make the corresponding loop in the tARG. Each edge is given by a pair of sequences, where sequences are denoted by integers starting from 0 in the same order as they appear in the input file. The last two columns contain respectively the start and end positions of the genomic segment associated to the building block containing the reticulate event \cite{target}. 
+\noindent Each row represents a single reticulate event in the tARG. The first two columns in the table contain the genetic scales of the two bar extrema in the barcode ensemble. The third column contains a list of the edges that make the corresponding loop in the tARG. Each edge is given by a pair of sequences, where sequences are denoted by integers starting from 0 in the same order as they appear in the input file. The last two columns contain respectively the start and end positions of the genomic segment associated to the building block containing the reticulate event \cite{target}. 
 
 The file \texttt{out.b1.txt} contains a tab separated table with columns:
 
@@ -503,7 +508,7 @@ Finally, the file \texttt{out.gexf} contains the reconstructed tARG in GEXF (Gra
 \begin{figure}[!ht]
 \centering
 \includegraphics[width=16cm, angle=0]{finches.png}
-\caption{Extended first-homology barcode and reconstructed tARG of a sample of 112 Darwin's finches, obtained with \texttt{TARGet} (the source FASTA file, \texttt{Darwing\_Finches.fa}, is included in the distribution). The extended first-homology barcode is shown in a), based on 140 homozygous SNPs present in a 9 megabase scaffold. In total, 13 recombination/gene flow events are captured in the extended barcode, having different genetic scales. Bars are coloured according to the position of the corresponding recombination breakpoint in the genome, as depicted in The number of recombination events detected at each genomic interval, as well as some of the orthologous genes present at regions where recombination events are detected, are indicated in c). The reconstructed tARG is presented in b). Recombination loops in the reconstructed tARG are outlined using the same code of colors. Leaf nodes that do not participate in any recombination event are also included in the graph, using a nearest neighbour algorithm based on genetic distance. Edge lengths are arbitrary. Figure taken from \cite{target}.
+\caption{First-homology barcode ensemble and reconstructed tARG of a sample of 112 Darwin's finches, obtained with \texttt{TARGet} (the source FASTA file, \texttt{Darwing\_Finches.fa}, is included in the distribution). The first-homology barcode ensemble is shown in a), based on 140 homozygous SNPs present in a 9 megabase scaffold. In total, 13 recombination/gene flow events are captured in the barcode ensemble, having different genetic scales. Bars are coloured according to the position of the corresponding recombination breakpoint in the genome, as depicted in The number of recombination events detected at each genomic interval, as well as some of the orthologous genes present at regions where recombination events are detected, are indicated in c). The reconstructed tARG is presented in b). Recombination loops in the reconstructed tARG are outlined using the same code of colors. Leaf nodes that do not participate in any recombination event are also included in the graph, using a nearest neighbour algorithm based on genetic distance. Edge lengths are arbitrary. Figure taken from \cite{target}.
 \label{fig7}}
 \end{figure} 
 
@@ -518,6 +523,12 @@ Finally, the file \texttt{out.gexf} contains the reconstructed tARG in GEXF (Gra
 \bibitem{mg} Myers, S.R. and Griffiths, R.C. (2003), \emph{Bounds on the minimum number of recombination events in a sample history}. Genetics {\bf 163}, pp. 375-394.
 
 \bibitem{target} Camara, P.G., Levine A.J. and Rabadan R. (2015), \emph{Inference of ancestral recombination graphs through topological data analysis}. \href{http://arxiv.org/abs/1505.05815}{arXiv:1505.05815}.
+
+\bibitem{t92} Tamura, K. (1992), \emph{Estimation of the number of nucleotide substitutions when there are strong transition-transversion and G+C-content biases}. Molecular biology and evolution {\bf 9}, pp. 678-687.
+
+\bibitem{k80} Kimura, M. (1980), \emph{A simple method for estimating evolutionary rates of base substitutions through comparative studies of nucleotide sequences}. Journal of molecular evolution, {\bf 16}, pp. 111-120.
+
+\bibitem{jc69} Jukes, T.H., and Cantor, C.R. (1969), \emph{Evolution of protein molecules}. Mammalian protein metabolism, {\bf 3}, pp. 132.
 
 \bibitem{hk} Hudson, R.R. and Kaplan, N.L. (1985), \emph{Statistical Properties of the Number of Recombination Events in the History of a Sample of DNA Sequences}. Genetics {\bf 111}, pp. 147-164.
 
